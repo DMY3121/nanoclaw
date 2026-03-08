@@ -217,8 +217,20 @@
     }
 
     .url-box {
-      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
     }
+    .qr-wrap img {
+      display: block;
+      width: 90px;
+      height: 90px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      padding: 6px;
+      border: 1px solid rgba(99,102,241,0.3);
+    }
+    .url-text-col { text-align: left; }
     .url-box .url-label {
       font-size: 0.7rem;
       color: var(--muted);
@@ -306,9 +318,14 @@
     <!-- Footer -->
     <div class="footer">
       <div class="url-box">
-        <div class="url-label">Scannez ou rendez-vous sur</div>
-        <div class="url-text" id="display-url">localhost:3456</div>
-        <div class="url-sub">Pour poser une question</div>
+        <div class="qr-wrap">
+          <img src="/api/qr" alt="QR code" id="qr-img" />
+        </div>
+        <div class="url-text-col">
+          <div class="url-label">Scannez ou rendez-vous sur</div>
+          <div class="url-text" id="display-url">localhost:3456</div>
+          <div class="url-sub">Pour poser votre question</div>
+        </div>
       </div>
       <div class="stats">
         <div class="stat">

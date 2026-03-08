@@ -3,6 +3,7 @@ import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";
 import crypto from "crypto";
+import QRCode from "qrcode";
 import Anthropic from "@anthropic-ai/sdk";
 
 const require = createRequire(import.meta.url);
@@ -156,6 +157,22 @@ app.get("/admin.html", (_req, res) => res.status(404).send("Not found"));
 // Serve admin.html only at /admin-<secret>/
 app.get(`/admin-${ADMIN_SECRET}`, (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "admin.html"));
+});
+
+// QR code pointing to the public page
+app.get("/api/qr", async (_req, res) => {
+  const publicUrl = process.env.PUBLIC_HOST
+    ? `https://${process.env.PUBLIC_HOST}/`
+    : `http://localhost:${PORT}/`;
+  const svg = await QRCode.toString(publicUrl, {
+    type: "svg",
+    margin: 1,
+    color: { dark: "#f1f5f9", light: "#00000000" }, // white dots, transparent bg
+    width: 200,
+  });
+  res.setHeader("Content-Type", "image/svg+xml");
+  res.setHeader("Cache-Control", "no-cache");
+  res.send(svg);
 });
 
 // Static files (index.html, display.html, CSS, JS…)
