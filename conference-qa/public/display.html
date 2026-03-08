@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Écran Q&A – Conférence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0f1e;
+      --accent: #6366f1;
+      --accent2: #a855f7;
+      --green: #22c55e;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --card-bg: rgba(30, 41, 59, 0.8);
+      --border: rgba(99, 102, 241, 0.3);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(168,85,247,0.10) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      padding: 2.5rem 3rem;
+      gap: 2rem;
+    }
+
+    /* ── Header ── */
+    .hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .hdr-left h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a5b4fc, #e879f9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hdr-left p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .live-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34,197,94,0.15);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 999px;
+      padding: 0.35rem 0.8rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--green);
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* ── Main question (hero) ── */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 1.2rem;
+    }
+
+    .hero-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.5rem 3rem;
+      backdrop-filter: blur(10px);
+      position: relative;
+      overflow: hidden;
+      transition: opacity 0.4s ease;
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+
+    .hero-text {
+      font-size: clamp(1.4rem, 3.5vw, 2.2rem);
+      font-weight: 700;
+      line-height: 1.4;
+      letter-spacing: -0.01em;
+    }
+
+    .hero-meta {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.25rem;
+      align-items: center;
+    }
+    .hero-author {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .hero-votes {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #a5b4fc;
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 999px;
+      padding: 3px 10px;
+    }
+    .hero-category {
+      font-size: 0.75rem;
+      background: rgba(168,85,247,0.15);
+      border: 1px solid rgba(168,85,247,0.3);
+      color: #e879f9;
+      border-radius: 999px;
+      padding: 2px 10px;
+    }
+
+    .pin-badge {
+      position: absolute;
+      top: 1.25rem; right: 1.25rem;
+      font-size: 1.2rem;
+    }
+
+    /* ── Queue ── */
+    .queue {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .queue-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .q-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(30,41,59,0.5);
+      border: 1px solid rgba(51,65,85,0.6);
+      border-radius: 10px;
+      padding: 0.6rem 1rem;
+      transition: opacity 0.3s;
+    }
+    .q-row-text {
+      flex: 1;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #cbd5e1;
+    }
+    .q-row-votes {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    /* ── QR + stats footer ── */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .url-box {
+      text-align: center;
+    }
+    .url-box .url-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .url-text {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #a5b4fc;
+      letter-spacing: 0.02em;
+    }
+    .url-sub {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a5b4fc, #e879f9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Empty / closed states */
+    .empty-hero {
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-hero .emoji { font-size: 3rem; display: block; margin-bottom: 0.75rem; }
+    .empty-hero p { font-size: 1rem; }
+
+    /* Animation */
+    .fade-in {
+      animation: fadeIn 0.5s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- Header -->
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1 id="conf-title">Conférence</h1>
+        <p>Posez vos questions en direct</p>
+      </div>
+      <div class="live-pill">
+        <span class="live-dot"></span>
+        <span id="live-label">En direct</span>
+      </div>
+    </div>
+
+    <!-- Main hero -->
+    <div class="hero">
+      <div class="hero-label" id="hero-label">Question en cours</div>
+      <div id="hero-area">
+        <div class="empty-hero">
+          <span class="emoji">🎤</span>
+          <p>En attente de questions…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="url-box">
+        <div class="url-label">Scannez ou rendez-vous sur</div>
+        <div class="url-text" id="display-url">localhost:3456</div>
+        <div class="url-sub">Pour poser une question</div>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num" id="stat-questions">0</div>
+          <div class="stat-label">Questions</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="stat-votes">0</div>
+          <div class="stat-label">Votes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="stat-answered">0</div>
+          <div class="stat-label">Répondues</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let questions = [];
+    let session = { title: 'Conférence', is_open: 1 };
+
+    // Show the current server URL
+    document.getElementById('display-url').textContent =
+      window.location.host || 'localhost:3456';
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getVisible() {
+      return questions
+        .filter(q => q.status === 'approved' || q.status === 'answered')
+        .sort((a, b) => (b.is_pinned - a.is_pinned) || (b.votes - a.votes) || (a.created_at - b.created_at));
+    }
+
+    function render() {
+      document.getElementById('conf-title').textContent = session.title;
+
+      const visible = getVisible();
+      const heroArea = document.getElementById('hero-area');
+      const heroLabel = document.getElementById('hero-label');
+
+      // Stats
+      document.getElementById('stat-questions').textContent = visible.length;
+      document.getElementById('stat-votes').textContent = visible.reduce((s, q) => s + q.votes, 0);
+      document.getElementById('stat-answered').textContent = questions.filter(q => q.status === 'answered').length;
+
+      if (!session.is_open && visible.length === 0) {
+        heroLabel.textContent = 'Session terminée';
+        heroArea.innerHTML = `<div class="empty-hero">
+          <span class="emoji">🙏</span>
+          <p>Merci pour votre participation !</p>
+        </div>`;
+        return;
+      }
+
+      if (visible.length === 0) {
+        heroLabel.textContent = 'En attente';
+        heroArea.innerHTML = `<div class="empty-hero">
+          <span class="emoji">🎤</span>
+          <p>En attente de questions…</p>
+        </div>`;
+        return;
+      }
+
+      // Hero (first question)
+      const hero = visible[0];
+      const isPinned = hero.is_pinned === 1;
+      heroLabel.textContent = isPinned ? '📌 Question épinglée' : 'Question principale';
+
+      heroArea.innerHTML = `<div class="hero-card fade-in">
+        ${isPinned ? '<span class="pin-badge">📌</span>' : ''}
+        <p class="hero-text">${escapeHtml(hero.text)}</p>
+        <div class="hero-meta">
+          <span class="hero-author">— ${escapeHtml(hero.author)}</span>
+          ${hero.votes > 0 ? `<span class="hero-votes">▲ ${hero.votes} vote${hero.votes > 1 ? 's' : ''}</span>` : ''}
+          ${hero.category ? `<span class="hero-category">${escapeHtml(hero.category)}</span>` : ''}
+          ${hero.status === 'answered' ? '<span style="font-size:0.75rem;color:var(--green);">✓ Répondue</span>' : ''}
+        </div>
+      </div>`;
+
+      // Queue (next questions)
+      const queue = visible.slice(1, 4);
+      if (queue.length > 0) {
+        const queueHtml = `<div class="queue">
+          <div class="queue-label">À suivre (${visible.length - 1} question${visible.length > 2 ? 's' : ''})</div>
+          ${queue.map(q => `<div class="q-row">
+            <span class="q-row-text">${escapeHtml(q.text)}</span>
+            ${q.votes > 0 ? `<span class="q-row-votes">▲ ${q.votes}</span>` : ''}
+          </div>`).join('')}
+        </div>`;
+        heroArea.innerHTML += queueHtml;
+      }
+    }
+
+    // ── SSE ──────────────────────────────────────────────────────────────────
+    function connectSSE() {
+      const es = new EventSource('/api/events');
+
+      es.addEventListener('init', e => {
+        const data = JSON.parse(e.data);
+        questions = data.questions;
+        session = data.session;
+        render();
+      });
+
+      es.addEventListener('question:approved', e => {
+        const q = JSON.parse(e.data);
+        if (!questions.find(x => x.id === q.id)) questions.push(q);
+        render();
+      });
+
+      es.addEventListener('question:updated', e => {
+        const update = JSON.parse(e.data);
+        const idx = questions.findIndex(q => q.id === update.id);
+        if (idx !== -1) questions[idx] = { ...questions[idx], ...update };
+        render();
+      });
+
+      es.addEventListener('question:voted', e => {
+        const { id, votes } = JSON.parse(e.data);
+        const q = questions.find(q => q.id === id);
+        if (q) q.votes = votes;
+        render();
+      });
+
+      es.addEventListener('question:deleted', e => {
+        const { id } = JSON.parse(e.data);
+        questions = questions.filter(q => q.id !== id);
+        render();
+      });
+
+      es.addEventListener('session:updated', e => {
+        session = JSON.parse(e.data);
+        render();
+      });
+
+      es.onerror = () => { setTimeout(connectSSE, 3000); es.close(); };
+    }
+
+    connectSSE();
+  </script>
+</body>
+</html>

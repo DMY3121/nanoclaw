@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Q&A – Conférence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #273347;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding-bottom: 2rem;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 { font-size: 1.1rem; font-weight: 700; }
+    header p.subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .badge-open  { background: #14532d; color: #86efac; }
+    .badge-close { background: #7f1d1d; color: #fca5a5; }
+
+    main { max-width: 640px; margin: 0 auto; padding: 1rem 1rem 0; }
+
+    /* Submit form */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-card h2 { font-size: 1rem; margin-bottom: 0.75rem; }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.6rem 0.75rem;
+      font-size: 0.9rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    textarea:focus, input[type="text"]:focus { border-color: var(--accent); }
+    textarea { min-height: 90px; }
+
+    .field-row { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+    .field-row input { flex: 1; }
+
+    button.submit-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    button.submit-btn:hover { background: var(--accent-hover); }
+    button.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .char-counter { font-size: 0.72rem; color: var(--muted); text-align: right; margin-top: 3px; }
+    .char-counter.warn { color: var(--yellow); }
+    .char-counter.error { color: var(--red); }
+
+    .toast {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .toast.success { background: #14532d; color: #86efac; display: block; }
+    .toast.error-t { background: #7f1d1d; color: #fca5a5; display: block; }
+
+    /* Questions list */
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .list-header h2 { font-size: 0.95rem; color: var(--muted); }
+
+    .q-count {
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .q-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .q-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      display: flex;
+      gap: 0.75rem;
+      transition: border-color 0.2s;
+    }
+    .q-card.pinned {
+      border-color: var(--accent);
+      background: #1e1f3a;
+    }
+    .q-card.answered {
+      opacity: 0.65;
+    }
+
+    .vote-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 44px;
+    }
+
+    button.vote-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      width: 40px;
+      height: 40px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    button.vote-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.vote-btn.voted { background: var(--accent); color: #fff; border-color: var(--accent); cursor: default; }
+
+    .vote-count {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .q-body { flex: 1; min-width: 0; }
+    .q-text { font-size: 0.95rem; line-height: 1.5; word-break: break-word; }
+
+    .q-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+      align-items: center;
+    }
+    .q-author { font-size: 0.75rem; color: var(--muted); }
+    .q-category {
+      font-size: 0.7rem;
+      background: #1e3a5f;
+      color: #93c5fd;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    .q-pin-icon { font-size: 0.75rem; color: var(--accent); }
+    .q-answered { font-size: 0.7rem; color: var(--green); }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+    }
+    .empty-state .emoji { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
+
+    .live-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.5s infinite;
+      margin-right: 4px;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1 id="conf-title">Conférence</h1>
+        <p class="subtitle"><span class="live-dot"></span>Questions en direct</p>
+      </div>
+      <span id="session-badge" class="badge badge-open">Ouvert</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Submit form -->
+    <div class="form-card" id="form-section">
+      <h2>Posez votre question</h2>
+      <textarea
+        id="q-text"
+        placeholder="Écrivez votre question ici…"
+        maxlength="500"
+      ></textarea>
+      <div class="char-counter" id="char-count">0 / 500</div>
+      <div class="field-row">
+        <input type="text" id="q-author" placeholder="Votre prénom (optionnel)" maxlength="50" />
+        <button class="submit-btn" id="submit-btn">Envoyer</button>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- Questions list -->
+    <div class="list-header">
+      <h2>Questions du public</h2>
+      <span class="q-count" id="q-count">0</span>
+    </div>
+    <div class="q-list" id="q-list">
+      <div class="empty-state">
+        <span class="emoji">🎤</span>
+        Soyez le premier à poser une question !
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ── Fingerprint (simple, browser-based) ──────────────────────────────────
+    const FP_KEY = 'qa_fp';
+    function getFingerprint() {
+      let fp = localStorage.getItem(FP_KEY);
+      if (!fp) {
+        fp = crypto.randomUUID();
+        localStorage.setItem(FP_KEY, fp);
+      }
+      return fp;
+    }
+    const fingerprint = getFingerprint();
+
+    // Votes the user already cast (stored locally)
+    const VOTED_KEY = 'qa_voted';
+    function getVoted() {
+      try { return new Set(JSON.parse(localStorage.getItem(VOTED_KEY) || '[]')); }
+      catch { return new Set(); }
+    }
+    function saveVoted(set) {
+      localStorage.setItem(VOTED_KEY, JSON.stringify([...set]));
+    }
+    const voted = getVoted();
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let questions = [];
+    let session = { title: 'Conférence', is_open: 1 };
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    function formatTime(epoch) {
+      const d = new Date(epoch * 1000);
+      return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderQuestions() {
+      const list = document.getElementById('q-list');
+      const count = document.getElementById('q-count');
+      count.textContent = questions.length;
+
+      if (questions.length === 0) {
+        list.innerHTML = `<div class="empty-state">
+          <span class="emoji">🎤</span>
+          Soyez le premier à poser une question !
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = questions.map(q => {
+        const hasVoted = voted.has(String(q.id));
+        const isAnswered = q.status === 'answered';
+        const isPinned = q.is_pinned === 1;
+
+        return `<div class="q-card${isPinned ? ' pinned' : ''}${isAnswered ? ' answered' : ''}" data-id="${q.id}">
+          <div class="vote-col">
+            <button class="vote-btn${hasVoted ? ' voted' : ''}"
+              onclick="vote(${q.id})"
+              ${hasVoted ? 'disabled' : ''}
+              title="${hasVoted ? 'Déjà voté' : 'Voter pour cette question'}">
+              ▲
+            </button>
+            <span class="vote-count" id="votes-${q.id}">${q.votes}</span>
+          </div>
+          <div class="q-body">
+            ${isPinned ? '<span class="q-pin-icon">📌 Mise en avant</span><br>' : ''}
+            <p class="q-text">${escapeHtml(q.text)}</p>
+            <div class="q-meta">
+              <span class="q-author">${escapeHtml(q.author)} · ${formatTime(q.created_at)}</span>
+              ${q.category ? `<span class="q-category">${escapeHtml(q.category)}</span>` : ''}
+              ${isAnswered ? '<span class="q-answered">✓ Répondue</span>' : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderSession() {
+      document.getElementById('conf-title').textContent = session.title;
+      const badge = document.getElementById('session-badge');
+      const form = document.getElementById('form-section');
+      if (session.is_open) {
+        badge.className = 'badge badge-open';
+        badge.textContent = 'Ouvert';
+        form.style.display = '';
+      } else {
+        badge.className = 'badge badge-close';
+        badge.textContent = 'Fermé';
+        form.style.display = 'none';
+      }
+    }
+
+    // ── Vote ────────────────────────────────────────────────────────────────
+    async function vote(id) {
+      if (voted.has(String(id))) return;
+
+      const btn = document.querySelector(`.q-card[data-id="${id}"] .vote-btn`);
+      if (btn) { btn.disabled = true; }
+
+      try {
+        const res = await fetch(`/api/questions/${id}/vote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fingerprint }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          voted.add(String(id));
+          saveVoted(voted);
+          const q = questions.find(q => q.id === id);
+          if (q) q.votes = data.votes;
+          renderQuestions();
+        }
+      } catch (e) {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // ── Submit ───────────────────────────────────────────────────────────────
+    const textarea = document.getElementById('q-text');
+    const charCount = document.getElementById('char-count');
+
+    textarea.addEventListener('input', () => {
+      const len = textarea.value.length;
+      charCount.textContent = `${len} / 500`;
+      charCount.className = 'char-counter' + (len > 450 ? ' warn' : '') + (len === 500 ? ' error' : '');
+    });
+
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      const text = textarea.value.trim();
+      const author = document.getElementById('q-author').value.trim() || 'Anonyme';
+      const toast = document.getElementById('toast');
+      const btn = document.getElementById('submit-btn');
+
+      if (text.length < 5) {
+        toast.textContent = 'La question est trop courte.';
+        toast.className = 'toast error-t';
+        return;
+      }
+
+      btn.disabled = true;
+      toast.className = 'toast';
+
+      try {
+        const res = await fetch('/api/questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, author }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          toast.textContent = data.message;
+          toast.className = 'toast success';
+          textarea.value = '';
+          charCount.textContent = '0 / 500';
+          charCount.className = 'char-counter';
+        } else {
+          toast.textContent = data.error ?? 'Erreur lors de l\'envoi.';
+          toast.className = 'toast error-t';
+        }
+      } catch {
+        toast.textContent = 'Erreur réseau. Réessayez.';
+        toast.className = 'toast error-t';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ── SSE ──────────────────────────────────────────────────────────────────
+    function connectSSE() {
+      const es = new EventSource('/api/events');
+
+      es.addEventListener('init', e => {
+        const data = JSON.parse(e.data);
+        questions = data.questions;
+        session = data.session;
+        renderQuestions();
+        renderSession();
+      });
+
+      es.addEventListener('question:approved', e => {
+        const q = JSON.parse(e.data);
+        if (!questions.find(x => x.id === q.id)) {
+          questions.unshift(q);
+          questions.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.votes - a.votes) || (a.created_at - b.created_at));
+          renderQuestions();
+        }
+      });
+
+      es.addEventListener('question:updated', e => {
+        const update = JSON.parse(e.data);
+        const idx = questions.findIndex(q => q.id === update.id);
+        if (idx !== -1) {
+          questions[idx] = { ...questions[idx], ...update };
+          if (update.status === 'rejected') {
+            questions.splice(idx, 1);
+          }
+          questions.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.votes - a.votes) || (a.created_at - b.created_at));
+          renderQuestions();
+        }
+      });
+
+      es.addEventListener('question:voted', e => {
+        const { id, votes } = JSON.parse(e.data);
+        const q = questions.find(q => q.id === id);
+        if (q) {
+          q.votes = votes;
+          questions.sort((a, b) => (b.is_pinned - a.is_pinned) || (b.votes - a.votes) || (a.created_at - b.created_at));
+          renderQuestions();
+        }
+      });
+
+      es.addEventListener('question:deleted', e => {
+        const { id } = JSON.parse(e.data);
+        questions = questions.filter(q => q.id !== id);
+        renderQuestions();
+      });
+
+      es.addEventListener('session:updated', e => {
+        session = JSON.parse(e.data);
+        renderSession();
+      });
+
+      es.onerror = () => {
+        setTimeout(connectSSE, 3000);
+        es.close();
+      };
+    }
+
+    connectSSE();
+  </script>
+</body>
+</html>

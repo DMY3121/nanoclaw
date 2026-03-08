@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin – Q&A Conférence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #273347;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --orange: #f97316;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+    }
+
+    /* ── Login screen ── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 1rem;
+    }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    .login-card h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+    .login-card p { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+    .login-card input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.65rem 0.75rem;
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      outline: none;
+    }
+    .login-card button {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .login-card button:hover { background: var(--accent-hover); }
+    .login-err { color: var(--red); font-size: 0.82rem; margin-top: 0.5rem; display: none; }
+
+    /* ── Main layout ── */
+    #app { display: none; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 1rem; font-weight: 700; }
+    .header-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    button.ctrl-btn {
+      padding: 0.4rem 0.8rem;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .ctrl-btn.green  { background: #14532d; color: #86efac; border-color: #166534; }
+    .ctrl-btn.green:hover  { background: #166534; }
+    .ctrl-btn.red    { background: #7f1d1d; color: #fca5a5; border-color: #991b1b; }
+    .ctrl-btn.red:hover    { background: #991b1b; }
+    .ctrl-btn.blue   { background: #1e3a5f; color: #93c5fd; border-color: #1d4ed8; }
+    .ctrl-btn.blue:hover   { background: #1d4ed8; }
+    .ctrl-btn.gray   { background: var(--surface2); color: var(--text); }
+    .ctrl-btn.gray:hover   { background: var(--border); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      padding: 0.75rem 1.25rem 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab-count {
+      background: var(--surface2);
+      border-radius: 999px;
+      font-size: 0.7rem;
+      padding: 0px 6px;
+      margin-left: 4px;
+    }
+    .tab-count.hot { background: var(--red); color: #fff; }
+
+    /* ── Content ── */
+    .content {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* ── Settings ── */
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .settings-card h3 { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.6rem; }
+    .settings-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .settings-row input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.88rem;
+      outline: none;
+      min-width: 120px;
+    }
+
+    /* ── Question cards ── */
+    .q-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .q-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+    .q-card.pending { border-left: 3px solid var(--yellow); }
+    .q-card.approved { border-left: 3px solid var(--accent); }
+    .q-card.answered { border-left: 3px solid var(--green); opacity: 0.7; }
+    .q-card.rejected { border-left: 3px solid var(--red); opacity: 0.55; }
+    .q-card.pinned   { background: #1e1f3a; }
+
+    .q-info { flex: 1; min-width: 0; }
+    .q-text { font-size: 0.9rem; line-height: 1.5; word-break: break-word; }
+
+    .q-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.4rem;
+      align-items: center;
+    }
+    .meta-pill {
+      font-size: 0.68rem;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    .pill-status-pending  { background: #422006; color: #fde68a; }
+    .pill-status-approved { background: #1e1b4b; color: #a5b4fc; }
+    .pill-status-answered { background: #052e16; color: #86efac; }
+    .pill-status-rejected { background: #450a0a; color: #fca5a5; }
+    .pill-cat { background: #1e3a5f; color: #93c5fd; }
+    .pill-votes { background: var(--surface2); color: var(--muted); }
+    .pill-pin  { background: #2e1065; color: #c4b5fd; }
+    .pill-ai   { background: #1c1917; color: #a8a29e; font-style: italic; }
+
+    .q-author { font-size: 0.72rem; color: var(--muted); }
+
+    .q-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 80px;
+    }
+
+    button.act-btn {
+      padding: 0.3rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+      transition: 0.12s;
+    }
+    .act-btn.approve  { background: #1e1b4b; color: #a5b4fc; border-color: #3730a3; }
+    .act-btn.approve:hover  { background: #3730a3; color: #fff; }
+    .act-btn.answer   { background: #052e16; color: #86efac; border-color: #166534; }
+    .act-btn.answer:hover   { background: #166534; }
+    .act-btn.reject   { background: #450a0a; color: #fca5a5; border-color: #991b1b; }
+    .act-btn.reject:hover   { background: #991b1b; }
+    .act-btn.pin      { background: #2e1065; color: #c4b5fd; border-color: #6d28d9; }
+    .act-btn.pin:hover      { background: #6d28d9; }
+    .act-btn.del      { background: var(--surface2); color: var(--muted); }
+    .act-btn.del:hover      { background: var(--red); color: #fff; border-color: var(--red); }
+    .act-btn.pending  { background: var(--surface2); color: var(--muted); }
+    .act-btn.pending:hover  { background: var(--border); }
+
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .stat-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .stat-chip strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>🔐 Admin</h1>
+    <p>Panneau de modération Q&A</p>
+    <input type="password" id="pin-input" placeholder="PIN" maxlength="20" />
+    <button onclick="login()">Connexion</button>
+    <p class="login-err" id="login-err">PIN incorrect</p>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <header>
+    <h1>🎤 Admin Q&A — <span id="hdr-title">Conférence</span></h1>
+    <div class="header-controls">
+      <button class="ctrl-btn blue" onclick="openDisplay()">🖥 Écran</button>
+      <button class="ctrl-btn" id="toggle-session-btn" onclick="toggleSession()">Fermer les questions</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-pending" onclick="setTab('pending')">
+      En attente <span class="tab-count hot" id="cnt-pending">0</span>
+    </button>
+    <button class="tab-btn" id="tab-approved" onclick="setTab('approved')">
+      Approuvées <span class="tab-count" id="cnt-approved">0</span>
+    </button>
+    <button class="tab-btn" id="tab-answered" onclick="setTab('answered')">
+      Répondues <span class="tab-count" id="cnt-answered">0</span>
+    </button>
+    <button class="tab-btn" id="tab-rejected" onclick="setTab('rejected')">
+      Rejetées <span class="tab-count" id="cnt-rejected">0</span>
+    </button>
+    <button class="tab-btn" id="tab-settings" onclick="setTab('settings')">
+      ⚙ Paramètres
+    </button>
+  </div>
+
+  <div class="content">
+    <div id="tab-content-pending"></div>
+    <div id="tab-content-approved" style="display:none"></div>
+    <div id="tab-content-answered" style="display:none"></div>
+    <div id="tab-content-rejected" style="display:none"></div>
+    <div id="tab-content-settings" style="display:none">
+      <div class="settings-card">
+        <h3>Titre de la conférence</h3>
+        <div class="settings-row">
+          <input type="text" id="conf-title-input" placeholder="Titre de la conférence" maxlength="80" />
+          <button class="ctrl-btn gray" onclick="updateTitle()">Sauvegarder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pin = '';
+  let questions = [];
+  let session = { title: 'Conférence', is_open: 1, id: 1 };
+  let currentTab = 'pending';
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  async function login() {
+    pin = document.getElementById('pin-input').value;
+    try {
+      const res = await fetch('/api/admin/verify', {
+        method: 'POST',
+        headers: { 'x-admin-pin': pin },
+      });
+      if (res.ok) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = '';
+        init();
+      } else {
+        document.getElementById('login-err').style.display = 'block';
+      }
+    } catch {
+      document.getElementById('login-err').style.display = 'block';
+    }
+  }
+
+  document.getElementById('pin-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  async function init() {
+    await loadData();
+    connectSSE();
+  }
+
+  async function loadData() {
+    const res = await fetch('/api/admin/questions', {
+      headers: { 'x-admin-pin': pin },
+    });
+    const data = await res.json();
+    questions = data.questions;
+    session = data.session;
+    renderAll();
+  }
+
+  // ── SSE ───────────────────────────────────────────────────────────────────
+  function connectSSE() {
+    const es = new EventSource('/api/events');
+
+    es.addEventListener('question:new', e => {
+      const q = JSON.parse(e.data);
+      if (!questions.find(x => x.id === q.id)) questions.unshift(q);
+      renderAll();
+    });
+
+    es.addEventListener('question:updated', e => {
+      const update = JSON.parse(e.data);
+      const idx = questions.findIndex(q => q.id === update.id);
+      if (idx !== -1) questions[idx] = { ...questions[idx], ...update };
+      renderAll();
+    });
+
+    es.addEventListener('question:voted', e => {
+      const { id, votes } = JSON.parse(e.data);
+      const q = questions.find(q => q.id === id);
+      if (q) q.votes = votes;
+      renderAll();
+    });
+
+    es.addEventListener('question:deleted', e => {
+      const { id } = JSON.parse(e.data);
+      questions = questions.filter(q => q.id !== id);
+      renderAll();
+    });
+
+    es.addEventListener('session:updated', e => {
+      session = JSON.parse(e.data);
+      renderSession();
+    });
+
+    es.onerror = () => { setTimeout(connectSSE, 3000); es.close(); };
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function byStatus(status) {
+    return questions.filter(q => q.status === status)
+      .sort((a, b) => (b.is_pinned - a.is_pinned) || (b.votes - a.votes) || (a.created_at - b.created_at));
+  }
+
+  function renderAll() {
+    renderCounts();
+    renderList('pending');
+    renderList('approved');
+    renderList('answered');
+    renderList('rejected');
+    renderSession();
+  }
+
+  function renderCounts() {
+    ['pending','approved','answered','rejected'].forEach(s => {
+      const el = document.getElementById(`cnt-${s}`);
+      el.textContent = byStatus(s).length;
+      el.className = 'tab-count' + (s === 'pending' && byStatus(s).length > 0 ? ' hot' : '');
+    });
+  }
+
+  function renderSession() {
+    const btn = document.getElementById('toggle-session-btn');
+    document.getElementById('hdr-title').textContent = session.title;
+    const titleInput = document.getElementById('conf-title-input');
+    if (titleInput && !titleInput.matches(':focus')) titleInput.value = session.title;
+
+    if (session.is_open) {
+      btn.textContent = 'Fermer les questions';
+      btn.className = 'ctrl-btn red';
+    } else {
+      btn.textContent = 'Ouvrir les questions';
+      btn.className = 'ctrl-btn green';
+    }
+  }
+
+  function formatTime(epoch) {
+    const d = new Date(epoch * 1000);
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function actionsFor(q) {
+    const btns = [];
+    if (q.status !== 'approved')  btns.push(`<button class="act-btn approve" onclick="setStatus(${q.id},'approved')">✓ Approuver</button>`);
+    if (q.status !== 'answered')  btns.push(`<button class="act-btn answer" onclick="setStatus(${q.id},'answered')">✓ Répondue</button>`);
+    if (q.status !== 'pending')   btns.push(`<button class="act-btn pending" onclick="setStatus(${q.id},'pending')">↩ En attente</button>`);
+    if (q.status !== 'rejected')  btns.push(`<button class="act-btn reject" onclick="setStatus(${q.id},'rejected')">✕ Rejeter</button>`);
+    btns.push(`<button class="act-btn pin" onclick="togglePin(${q.id},${q.is_pinned})">${q.is_pinned ? '📌 Désépingler' : '📌 Épingler'}</button>`);
+    btns.push(`<button class="act-btn del" onclick="delQuestion(${q.id})">🗑</button>`);
+    return btns.join('');
+  }
+
+  function renderList(status) {
+    const list = byStatus(status);
+    const el = document.getElementById(`tab-content-${status}`);
+    if (!el) return;
+
+    if (list.length === 0) {
+      el.innerHTML = `<div class="empty-state">Aucune question dans cette catégorie.</div>`;
+      return;
+    }
+
+    const stats = status === 'pending'
+      ? `<div class="stats-bar">
+           <div class="stat-chip"><strong>${list.length}</strong> en attente</div>
+         </div>`
+      : '';
+
+    el.innerHTML = stats + `<div class="q-list">` +
+      list.map(q => `
+        <div class="q-card ${q.status}${q.is_pinned ? ' pinned' : ''}">
+          <div class="q-info">
+            <p class="q-text">${escapeHtml(q.text)}</p>
+            <div class="q-meta">
+              <span class="q-author">${escapeHtml(q.author)} · ${formatTime(q.created_at)}</span>
+              <span class="meta-pill pill-status-${q.status}">${q.status}</span>
+              ${q.category ? `<span class="meta-pill pill-cat">${escapeHtml(q.category)}</span>` : ''}
+              <span class="meta-pill pill-votes">▲ ${q.votes}</span>
+              ${q.is_pinned ? '<span class="meta-pill pill-pin">📌</span>' : ''}
+              ${q.ai_note ? `<span class="meta-pill pill-ai">IA : ${escapeHtml(q.ai_note)}</span>` : ''}
+            </div>
+          </div>
+          <div class="q-actions">${actionsFor(q)}</div>
+        </div>
+      `).join('') + `</div>`;
+  }
+
+  // ── Tab navigation ────────────────────────────────────────────────────────
+  function setTab(tab) {
+    currentTab = tab;
+    ['pending','approved','answered','rejected','settings'].forEach(t => {
+      document.getElementById(`tab-${t}`)?.classList.toggle('active', t === tab);
+      const el = document.getElementById(`tab-content-${t}`);
+      if (el) el.style.display = t === tab ? '' : 'none';
+    });
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  async function setStatus(id, status) {
+    await fetch(`/api/admin/questions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pin': pin },
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async function togglePin(id, currentPin) {
+    await fetch(`/api/admin/questions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pin': pin },
+      body: JSON.stringify({ is_pinned: currentPin ? 0 : 1 }),
+    });
+  }
+
+  async function delQuestion(id) {
+    if (!confirm('Supprimer cette question ?')) return;
+    await fetch(`/api/admin/questions/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-pin': pin },
+    });
+  }
+
+  async function toggleSession() {
+    await fetch('/api/admin/session', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pin': pin },
+      body: JSON.stringify({ is_open: session.is_open ? 0 : 1 }),
+    });
+  }
+
+  async function updateTitle() {
+    const title = document.getElementById('conf-title-input').value.trim();
+    if (!title) return;
+    await fetch('/api/admin/session', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-pin': pin },
+      body: JSON.stringify({ title }),
+    });
+  }
+
+  function openDisplay() {
+    window.open('/display.html', '_blank');
+  }
+</script>
+</body>
+</html>
