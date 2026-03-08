@@ -16,20 +16,33 @@ Application temps réel pour permettre au public de poser des questions lors d'u
 cd conference-qa
 npm install
 
-# Avec modération IA (recommandé)
-ANTHROPIC_API_KEY=sk-ant-... npm start
+# Local uniquement
+ANTHROPIC_API_KEY=sk-ant-... ADMIN_PIN=monpin npm start
 
-# Sans IA
-npm start
+# Local + tunnel Cloudflare (qa.dmy.me)
+ANTHROPIC_API_KEY=sk-ant-... ADMIN_PIN=monpin npm run start:tunnel
 ```
 
 ## URLs
 
 | Page | URL |
 |------|-----|
-| Public (participants) | `http://localhost:3456/` |
+| Public (participants) | `http://localhost:3456/` ou `https://qa.dmy.me/` |
 | Écran de présentation | `http://localhost:3456/display.html` |
-| Admin / modération | `http://localhost:3456/admin.html` |
+| Admin / modération | URL secrète affichée dans la **console au démarrage** |
+
+> Le panneau admin n'est accessible qu'à une URL secrète (`/admin-<token>`) générée au démarrage.
+> Pas d'URL connue = pas d'accès. Définir `ADMIN_SECRET=...` pour une URL stable entre redémarrages.
+
+## Cloudflare Tunnel (qa.dmy.me)
+
+```bash
+# 1. Setup une seule fois (authentification + DNS)
+npm run setup:tunnel
+
+# 2. Lancer app + tunnel
+ADMIN_PIN=monpin ADMIN_SECRET=monsecret ANTHROPIC_API_KEY=sk-ant-... npm run start:tunnel
+```
 
 ## Variables d'environnement
 
@@ -40,6 +53,8 @@ npm start
 | `ANTHROPIC_API_KEY` | — | Clé API Claude (optionnel) |
 | `CONFERENCE_TITLE` | `Conférence` | Titre affiché |
 | `DB_PATH` | `./qa.db` | Chemin de la base SQLite |
+| `ADMIN_SECRET` | *(aléatoire)* | Token secret de l'URL admin (stable si défini) |
+| `PUBLIC_HOST` | — | Domaine public affiché dans la console (ex: `qa.dmy.me`) |
 
 ## Flux de travail
 

@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/server.ts",
-    "dev": "tsx --watch src/server.ts"
+    "dev": "tsx --watch src/server.ts",
+    "setup:tunnel": "bash setup-tunnel.sh",
+    "tunnel": "cloudflared tunnel --config tunnel/config.yml run",
+    "start:tunnel": "PUBLIC_HOST=qa.dmy.me tsx src/server.ts & cloudflared tunnel --config tunnel/config.yml run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",

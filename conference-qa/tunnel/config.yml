@@ -1,0 +1,10 @@
+# Cloudflare Tunnel — Conference Q&A
+# Généré par setup-tunnel.sh — ne pas modifier manuellement
+
+tunnel: TUNNEL_ID_PLACEHOLDER
+credentials-file: /root/.cloudflared/TUNNEL_ID_PLACEHOLDER.json
+
+ingress:
+  - hostname: qa.dmy.me
+    service: http://localhost:3456
+  - service: http_status:404

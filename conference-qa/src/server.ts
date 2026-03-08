@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";
+import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
 
 const require = createRequire(import.meta.url);
@@ -12,6 +13,10 @@ const PUBLIC_DIR = path.join(__dirname, "..", "public");
 const DB_PATH = process.env.DB_PATH ?? path.join(__dirname, "..", "qa.db");
 const PORT = parseInt(process.env.PORT ?? "3456", 10);
 const ADMIN_PIN = process.env.ADMIN_PIN ?? "1234";
+
+// Secret URL segment for the admin panel — set via env or generated once at startup.
+// Anyone without this path gets a 404, even on the public internet.
+const ADMIN_SECRET = process.env.ADMIN_SECRET ?? crypto.randomBytes(8).toString("hex");
 
 // ─── Database ────────────────────────────────────────────────────────────────
 
@@ -144,7 +149,22 @@ function getAllQuestions() {
 
 const app = express();
 app.use(express.json());
-app.use(express.static(PUBLIC_DIR));
+
+// Block direct access to admin.html — it's only reachable via the secret path
+app.get("/admin.html", (_req, res) => res.status(404).send("Not found"));
+
+// Serve admin.html only at /admin-<secret>/
+app.get(`/admin-${ADMIN_SECRET}`, (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "admin.html"));
+});
+
+// Static files (index.html, display.html, CSS, JS…)
+app.use(express.static(PUBLIC_DIR, {
+  // Prevent express.static from serving admin.html at its original path
+  index: false,
+}));
+// Serve index.html for root
+app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
 
 // Admin auth middleware
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -359,13 +379,19 @@ app.post("/api/admin/verify", requireAdmin, (_req, res) => {
 // ─── Start ───────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
-  console.log(`\n🎤 Conference Q&A démarré sur http://localhost:${PORT}`);
-  console.log(`   📱 Public  → http://localhost:${PORT}/`);
-  console.log(`   🖥️  Écran   → http://localhost:${PORT}/display.html`);
-  console.log(`   🔧 Admin   → http://localhost:${PORT}/admin.html`);
+  const base = `http://localhost:${PORT}`;
+  console.log(`\n🎤 Conference Q&A démarré`);
+  console.log(`   📱 Public  → ${base}/`);
+  console.log(`   🖥️  Écran   → ${base}/display.html`);
+  console.log(`   🔐 Admin   → ${base}/admin-${ADMIN_SECRET}`);
   console.log(`   🔑 PIN admin : ${ADMIN_PIN}`);
   if (!process.env.ANTHROPIC_API_KEY) {
     console.log(`   ⚠️  ANTHROPIC_API_KEY manquant — modération IA désactivée`);
+  }
+  if (process.env.PUBLIC_HOST) {
+    console.log(`\n   🌍 Public  → https://${process.env.PUBLIC_HOST}/`);
+    console.log(`   🖥️  Écran   → https://${process.env.PUBLIC_HOST}/display.html`);
+    console.log(`   🔐 Admin   → https://${process.env.PUBLIC_HOST}/admin-${ADMIN_SECRET}`);
   }
   console.log();
 });
