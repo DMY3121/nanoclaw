@@ -4,26 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Q&A – Conférence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Blackout+Midnight&family=Blackout+2+AM&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0f172a;
-      --surface: #1e293b;
-      --surface2: #273347;
-      --accent: #6366f1;
-      --accent-hover: #4f46e5;
-      --green: #22c55e;
-      --yellow: #eab308;
-      --red: #ef4444;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --border: #334155;
-      --radius: 12px;
+      --bg: #f1f0ec;
+      --surface: #ffffff;
+      --surface2: #f5f4f0;
+      --accent: #245e4f;
+      --accent-hover: #1a4a3d;
+      --green: #245e4f;
+      --yellow: #f2bd21;
+      --red: #db4229;
+      --rouge: #c72125;
+      --bleu: #306696;
+      --text: #1a1e1d;
+      --muted: #6b7280;
+      --border: #d8d6cf;
+      --radius: 10px;
     }
 
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Montserrat', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100dvh;
@@ -31,26 +34,33 @@
     }
 
     header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      background: var(--accent);
       padding: 1rem 1.25rem;
       position: sticky;
       top: 0;
       z-index: 10;
     }
 
-    header h1 { font-size: 1.1rem; font-weight: 700; }
-    header p.subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+    header h1 {
+      font-family: 'Blackout Midnight', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 400;
+      color: #f1f0ec;
+      letter-spacing: 0.02em;
+    }
+    header p.subtitle { font-size: 0.78rem; color: rgba(241,240,236,0.7); margin-top: 2px; font-weight: 500; }
 
     .badge {
       display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
-    .badge-open  { background: #14532d; color: #86efac; }
-    .badge-close { background: #7f1d1d; color: #fca5a5; }
+    .badge-open  { background: var(--yellow); color: var(--text); }
+    .badge-close { background: var(--red); color: #fff; }
 
     main { max-width: 640px; margin: 0 auto; padding: 1rem 1rem 0; }
 
@@ -62,15 +72,23 @@
       padding: 1.25rem;
       margin-bottom: 1.5rem;
     }
-    .form-card h2 { font-size: 1rem; margin-bottom: 0.75rem; }
+    .form-card h2 {
+      font-family: 'Blackout 2 AM', sans-serif;
+      font-size: 1rem;
+      font-weight: 400;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
 
     textarea, input[type="text"] {
       width: 100%;
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 6px;
       color: var(--text);
       padding: 0.6rem 0.75rem;
+      font-family: 'Montserrat', sans-serif;
       font-size: 0.9rem;
       resize: vertical;
       outline: none;
@@ -84,32 +102,36 @@
 
     button.submit-btn {
       background: var(--accent);
-      color: #fff;
+      color: #f1f0ec;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 0.6rem 1.2rem;
-      font-size: 0.9rem;
-      font-weight: 600;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
       cursor: pointer;
       transition: background 0.15s;
       white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     button.submit-btn:hover { background: var(--accent-hover); }
     button.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .char-counter { font-size: 0.72rem; color: var(--muted); text-align: right; margin-top: 3px; }
-    .char-counter.warn { color: var(--yellow); }
+    .char-counter.warn { color: #e07b00; }
     .char-counter.error { color: var(--red); }
 
     .toast {
       margin-top: 0.75rem;
       padding: 0.5rem 0.75rem;
-      border-radius: 8px;
+      border-radius: 6px;
       font-size: 0.85rem;
+      font-weight: 500;
       display: none;
     }
-    .toast.success { background: #14532d; color: #86efac; display: block; }
-    .toast.error-t { background: #7f1d1d; color: #fca5a5; display: block; }
+    .toast.success { background: #d4ede7; color: var(--accent); border: 1px solid #b3dbd2; display: block; }
+    .toast.error-t { background: #fde8e4; color: var(--rouge); border: 1px solid #f5c4bc; display: block; }
 
     /* Questions list */
     .list-header {
@@ -118,15 +140,22 @@
       align-items: center;
       margin-bottom: 0.75rem;
     }
-    .list-header h2 { font-size: 0.95rem; color: var(--muted); }
+    .list-header h2 {
+      font-family: 'Blackout 2 AM', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
 
     .q-count {
-      font-size: 0.75rem;
-      color: var(--muted);
-      background: var(--surface);
-      border: 1px solid var(--border);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: #d4ede7;
+      border: 1px solid #b3dbd2;
       padding: 2px 8px;
-      border-radius: 999px;
+      border-radius: 4px;
     }
 
     .q-list { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -141,11 +170,11 @@
       transition: border-color 0.2s;
     }
     .q-card.pinned {
-      border-color: var(--accent);
-      background: #1e1f3a;
+      border-color: var(--yellow);
+      border-left: 4px solid var(--yellow);
     }
     .q-card.answered {
-      opacity: 0.65;
+      opacity: 0.6;
     }
 
     .vote-col {
@@ -159,28 +188,28 @@
     button.vote-btn {
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 6px;
       color: var(--muted);
       width: 40px;
       height: 40px;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
-    button.vote-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-    button.vote-btn.voted { background: var(--accent); color: #fff; border-color: var(--accent); cursor: default; }
+    button.vote-btn:hover { background: var(--yellow); color: var(--text); border-color: var(--yellow); }
+    button.vote-btn.voted { background: var(--yellow); color: var(--text); border-color: var(--yellow); cursor: default; }
 
     .vote-count {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 700;
       color: var(--text);
     }
 
     .q-body { flex: 1; min-width: 0; }
-    .q-text { font-size: 0.95rem; line-height: 1.5; word-break: break-word; }
+    .q-text { font-size: 0.93rem; line-height: 1.55; word-break: break-word; font-weight: 500; }
 
     .q-meta {
       display: flex;
@@ -189,16 +218,19 @@
       margin-top: 0.5rem;
       align-items: center;
     }
-    .q-author { font-size: 0.75rem; color: var(--muted); }
+    .q-author { font-size: 0.72rem; color: var(--muted); }
     .q-category {
-      font-size: 0.7rem;
-      background: #1e3a5f;
-      color: #93c5fd;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: #dce8f2;
+      color: var(--bleu);
       padding: 1px 7px;
-      border-radius: 999px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    .q-pin-icon { font-size: 0.75rem; color: var(--accent); }
-    .q-answered { font-size: 0.7rem; color: var(--green); }
+    .q-pin-icon { font-size: 0.72rem; color: #b8860b; font-weight: 700; }
+    .q-answered { font-size: 0.68rem; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.05em; }
 
     .empty-state {
       text-align: center;
@@ -211,7 +243,7 @@
       display: inline-block;
       width: 7px; height: 7px;
       border-radius: 50%;
-      background: var(--green);
+      background: var(--yellow);
       animation: pulse 1.5s infinite;
       margin-right: 4px;
     }
@@ -222,23 +254,25 @@
 
     /* QR share button */
     button.qr-btn {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      color: var(--muted);
-      padding: 4px 8px;
-      font-size: 0.78rem;
+      background: rgba(241,240,236,0.15);
+      border: 1px solid rgba(241,240,236,0.3);
+      border-radius: 6px;
+      color: #f1f0ec;
+      padding: 4px 10px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
       cursor: pointer;
       transition: 0.15s;
     }
-    button.qr-btn:hover { border-color: var(--accent); color: var(--text); }
+    button.qr-btn:hover { background: rgba(241,240,236,0.25); }
 
     /* QR modal */
     .qr-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(26,30,29,0.7);
       z-index: 100;
       align-items: center;
       justify-content: center;
@@ -247,25 +281,33 @@
     .qr-modal {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 12px;
       padding: 1.75rem;
       text-align: center;
       max-width: 260px;
       width: 90%;
     }
-    .qr-modal h3 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+    .qr-modal h3 {
+      font-family: 'Blackout 2 AM', sans-serif;
+      font-size: 1rem;
+      font-weight: 400;
+      margin-bottom: 0.25rem;
+      color: var(--accent);
+    }
     .qr-modal p  { font-size: 0.75rem; color: var(--muted); margin-bottom: 1rem; }
-    .qr-modal img { width: 180px; height: 180px; border-radius: 10px;
-      background: rgba(255,255,255,0.05); padding: 8px;
+    .qr-modal img { width: 180px; height: 180px; border-radius: 8px;
+      background: var(--surface2); padding: 8px;
       border: 1px solid var(--border); }
     .qr-modal button {
       margin-top: 1rem;
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 7px;
+      border-radius: 6px;
       color: var(--muted);
       padding: 0.4rem 1rem;
+      font-family: 'Montserrat', sans-serif;
       font-size: 0.82rem;
+      font-weight: 600;
       cursor: pointer;
       width: 100%;
     }

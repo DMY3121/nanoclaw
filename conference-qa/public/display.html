@@ -4,38 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Écran Q&A – Conférence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Blackout+Midnight&family=Blackout+2+AM&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0a0f1e;
-      --accent: #6366f1;
-      --accent2: #a855f7;
-      --green: #22c55e;
-      --text: #f1f5f9;
-      --muted: #64748b;
-      --card-bg: rgba(30, 41, 59, 0.8);
-      --border: rgba(99, 102, 241, 0.3);
+      --bg: #1a1e1d;
+      --vert: #245e4f;
+      --jaune: #f2bd21;
+      --rouge: #db4229;
+      --beige: #f1f0ec;
+      --text: #f1f0ec;
+      --muted: rgba(241,240,236,0.5);
+      --card-bg: rgba(36,94,79,0.25);
+      --border: rgba(241,240,236,0.12);
     }
 
     html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Montserrat', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-    }
-
-    /* Animated background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 20%, rgba(168,85,247,0.10) 0%, transparent 50%);
-      pointer-events: none;
     }
 
     .layout {
@@ -53,34 +44,36 @@
       align-items: flex-start;
     }
     .hdr-left h1 {
-      font-size: 2rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #a5b4fc, #e879f9);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-family: 'Blackout Midnight', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 400;
+      color: var(--jaune);
+      letter-spacing: 0.03em;
     }
     .hdr-left p {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       color: var(--muted);
-      margin-top: 4px;
+      margin-top: 6px;
+      font-weight: 500;
     }
     .live-pill {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: rgba(34,197,94,0.15);
-      border: 1px solid rgba(34,197,94,0.3);
-      border-radius: 999px;
-      padding: 0.35rem 0.8rem;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--green);
+      background: rgba(242,189,33,0.15);
+      border: 1px solid rgba(242,189,33,0.35);
+      border-radius: 4px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--jaune);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
     .live-dot {
-      width: 8px; height: 8px;
+      width: 7px; height: 7px;
       border-radius: 50%;
-      background: var(--green);
+      background: var(--jaune);
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
@@ -97,68 +90,67 @@
     }
 
     .hero-label {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: var(--accent2);
+      color: var(--muted);
       margin-bottom: 1.2rem;
     }
 
     .hero-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 20px;
+      border-left: 5px solid var(--jaune);
+      border-radius: 12px;
       padding: 2.5rem 3rem;
-      backdrop-filter: blur(10px);
       position: relative;
       overflow: hidden;
       transition: opacity 0.4s ease;
     }
-    .hero-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-    }
 
     .hero-text {
-      font-size: clamp(1.4rem, 3.5vw, 2.2rem);
-      font-weight: 700;
-      line-height: 1.4;
-      letter-spacing: -0.01em;
+      font-family: 'Blackout 2 AM', sans-serif;
+      font-size: clamp(1.5rem, 3.5vw, 2.4rem);
+      font-weight: 400;
+      line-height: 1.35;
+      letter-spacing: 0.02em;
+      color: var(--beige);
     }
 
     .hero-meta {
       display: flex;
       gap: 1rem;
-      margin-top: 1.25rem;
+      margin-top: 1.5rem;
       align-items: center;
     }
     .hero-author {
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       color: var(--muted);
+      font-weight: 500;
     }
     .hero-votes {
       display: flex;
       align-items: center;
       gap: 5px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 700;
-      color: #a5b4fc;
-      background: rgba(99,102,241,0.15);
-      border: 1px solid rgba(99,102,241,0.3);
-      border-radius: 999px;
+      color: var(--jaune);
+      background: rgba(242,189,33,0.12);
+      border: 1px solid rgba(242,189,33,0.3);
+      border-radius: 4px;
       padding: 3px 10px;
     }
     .hero-category {
-      font-size: 0.75rem;
-      background: rgba(168,85,247,0.15);
-      border: 1px solid rgba(168,85,247,0.3);
-      color: #e879f9;
-      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: rgba(48,102,150,0.2);
+      border: 1px solid rgba(48,102,150,0.4);
+      color: #93c5fd;
+      border-radius: 4px;
       padding: 2px 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .pin-badge {
@@ -174,7 +166,7 @@
       gap: 0.5rem;
     }
     .queue-label {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -186,9 +178,9 @@
       display: flex;
       align-items: center;
       gap: 1rem;
-      background: rgba(30,41,59,0.5);
-      border: 1px solid rgba(51,65,85,0.6);
-      border-radius: 10px;
+      background: rgba(241,240,236,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
       padding: 0.6rem 1rem;
       transition: opacity 0.3s;
     }
@@ -199,12 +191,12 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: #cbd5e1;
+      color: rgba(241,240,236,0.7);
     }
     .q-row-votes {
       font-size: 0.75rem;
       font-weight: 700;
-      color: #64748b;
+      color: var(--jaune);
       white-space: nowrap;
     }
 
@@ -225,22 +217,26 @@
       display: block;
       width: 90px;
       height: 90px;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      background: var(--beige);
       padding: 6px;
-      border: 1px solid rgba(99,102,241,0.3);
+      border: 2px solid var(--vert);
     }
     .url-text-col { text-align: left; }
     .url-box .url-label {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
+      font-weight: 600;
       color: var(--muted);
       margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
     .url-text {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #a5b4fc;
-      letter-spacing: 0.02em;
+      font-family: 'Blackout Midnight', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 400;
+      color: var(--jaune);
+      letter-spacing: 0.04em;
     }
     .url-sub {
       font-size: 0.68rem;
@@ -257,19 +253,19 @@
       text-align: center;
     }
     .stat-num {
-      font-size: 2rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #a5b4fc, #e879f9);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-family: 'Blackout Midnight', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 400;
+      color: var(--jaune);
       line-height: 1;
     }
     .stat-label {
-      font-size: 0.68rem;
+      font-size: 0.66rem;
+      font-weight: 700;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
     }
 
     /* Empty / closed states */
@@ -278,7 +274,7 @@
       color: var(--muted);
     }
     .empty-hero .emoji { font-size: 3rem; display: block; margin-bottom: 0.75rem; }
-    .empty-hero p { font-size: 1rem; }
+    .empty-hero p { font-size: 1rem; font-weight: 500; }
 
     /* Animation */
     .fade-in {
