@@ -90,12 +90,13 @@ function VoiceNoteApp() {
   }, []);
 
   const checkSetup = async () => {
-    const [apiKey, token, folderId] = await Promise.all([
-      SecureStore.getItemAsync('openai_api_key'),
+    const [geminiKey, anthropicKey, token, folderId] = await Promise.all([
+      SecureStore.getItemAsync('gemini_api_key'),
+      SecureStore.getItemAsync('anthropic_api_key'),
       SecureStore.getItemAsync('google_access_token'),
       SecureStore.getItemAsync('drive_folder_id'),
     ]);
-    setAppState(apiKey && token && folderId ? 'ready' : 'setup');
+    setAppState(geminiKey && anthropicKey && token && folderId ? 'ready' : 'setup');
   };
 
   // Auto-start recording
@@ -200,13 +201,17 @@ function VoiceNoteApp() {
       setRecording(null);
       if (!uri) throw new Error('No audio URI returned.');
 
-      const apiKey = await SecureStore.getItemAsync('openai_api_key');
-      if (!apiKey) throw new Error('OpenAI API key not found.');
+      const [geminiKey, anthropicKey] = await Promise.all([
+        SecureStore.getItemAsync('gemini_api_key'),
+        SecureStore.getItemAsync('anthropic_api_key'),
+      ]);
+      if (!geminiKey) throw new Error('Gemini API key not found.');
+      if (!anthropicKey) throw new Error('Anthropic API key not found.');
 
-      const transcription = await transcribeAudio(uri, apiKey);
+      const transcription = await transcribeAudio(uri, geminiKey);
 
       setStatusText('Enriching metadata…');
-      const meta = await gatherMetadata(transcription, apiKey);
+      const meta = await gatherMetadata(transcription, anthropicKey);
 
       setAppState('uploading');
       setStatusText('Saving to Google Drive…');

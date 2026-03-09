@@ -28,7 +28,7 @@ import { GOOGLE_CLIENT_ID, GOOGLE_SCOPES } from '../config';
 
 WebBrowser.maybeCompleteAuthSession();
 
-type Step = 'api_key' | 'google_auth' | 'folder_picker' | 'done';
+type Step = 'api_keys' | 'google_auth' | 'folder_picker' | 'done';
 
 const GOOGLE_DISCOVERY = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -42,11 +42,17 @@ interface Props {
 export default function SetupScreen({ onComplete }: Props) {
   const t = useTheme();
 
-  const [step, setStep] = useState<Step>('api_key');
-  const [apiKey, setApiKey] = useState('');
-  const [apiKeyVisible, setApiKeyVisible] = useState(false);
-  const [validatingKey, setValidatingKey] = useState(false);
-  const [keyError, setKeyError] = useState('');
+  const [step, setStep] = useState<Step>('api_keys');
+
+  // Step 1: API keys
+  const [geminiKey, setGeminiKey] = useState('');
+  const [geminiVisible, setGeminiVisible] = useState(false);
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [anthropicVisible, setAnthropicVisible] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [keysError, setKeysError] = useState('');
+
+  // Steps 2–3: Drive
   const [accessToken, setAccessToken] = useState('');
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
@@ -78,28 +84,39 @@ export default function SetupScreen({ onComplete }: Props) {
     }
   }, [authResponse]);
 
-  const validateApiKey = async () => {
-    const trimmed = apiKey.trim();
-    setKeyError('');
-    if (!trimmed.startsWith('sk-')) {
-      setKeyError('OpenAI keys start with "sk-"');
+  // ── Validate and save both API keys ──────────────────────────────────────
+  const validateAndSaveKeys = async () => {
+    const gKey = geminiKey.trim();
+    const aKey = anthropicKey.trim();
+    setKeysError('');
+
+    if (!gKey) { setKeysError('Gemini API key is required.'); return; }
+    if (!aKey) { setKeysError('Anthropic API key is required.'); return; }
+    if (!aKey.startsWith('sk-ant-')) {
+      setKeysError('Anthropic keys start with "sk-ant-".');
       return;
     }
-    setValidatingKey(true);
+
+    setValidating(true);
     try {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { Authorization: `Bearer ${trimmed}` },
-      });
+      // Validate Gemini key by listing models
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${gKey}`
+      );
       if (!res.ok) {
-        setKeyError('Key rejected by OpenAI — check it and try again.');
+        setKeysError('Gemini key rejected — check it and try again.');
         return;
       }
-      await SecureStore.setItemAsync('openai_api_key', trimmed);
+
+      await Promise.all([
+        SecureStore.setItemAsync('gemini_api_key', gKey),
+        SecureStore.setItemAsync('anthropic_api_key', aKey),
+      ]);
       setStep('google_auth');
     } catch {
-      setKeyError('Network error — check your connection.');
+      setKeysError('Network error — check your connection.');
     } finally {
-      setValidatingKey(false);
+      setValidating(false);
     }
   };
 
@@ -129,10 +146,10 @@ export default function SetupScreen({ onComplete }: Props) {
   };
 
   const bg = t.colors.background;
-  const surface = t.colors.surface;
 
-  // ── Step 1: API Key ──────────────────────────────────────────────────────
-  if (step === 'api_key') {
+  // ── Step 1: API Keys ──────────────────────────────────────────────────────
+  if (step === 'api_keys') {
+    const canContinue = geminiKey.trim().length > 0 && anthropicKey.trim().length > 0;
     return (
       <KeyboardAvoidingView
         style={[styles.flex, { backgroundColor: bg }]}
@@ -143,59 +160,88 @@ export default function SetupScreen({ onComplete }: Props) {
             <Appbar.Content title="Setup (1 / 3)" />
           </Appbar.Header>
 
-          <View style={styles.inner}>
+          <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
             <Text variant="headlineMedium" style={[styles.title, { color: t.colors.onSurface }]}>
-              OpenAI API Key
-            </Text>
-            <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: 28 }}>
-              Used to transcribe your voice notes via Whisper.
+              API Keys
             </Text>
 
+            {/* Gemini */}
+            <Text variant="labelLarge" style={[styles.sectionLabel, { color: t.colors.primary }]}>
+              Gemini
+            </Text>
+            <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: 10 }}>
+              Used to transcribe your voice recordings (Gemini 1.5 Flash).
+            </Text>
             <TextInput
-              label="API Key"
-              value={apiKey}
-              onChangeText={(v) => { setApiKey(v); setKeyError(''); }}
+              label="Gemini API Key"
+              value={geminiKey}
+              onChangeText={(v) => { setGeminiKey(v); setKeysError(''); }}
               mode="outlined"
-              secureTextEntry={!apiKeyVisible}
+              secureTextEntry={!geminiVisible}
               autoCapitalize="none"
               autoCorrect={false}
               right={
                 <TextInput.Icon
-                  icon={apiKeyVisible ? 'eye-off' : 'eye'}
-                  onPress={() => setApiKeyVisible((v) => !v)}
+                  icon={geminiVisible ? 'eye-off' : 'eye'}
+                  onPress={() => setGeminiVisible((v) => !v)}
                 />
               }
-              error={!!keyError}
-              onSubmitEditing={validateApiKey}
-              returnKeyType="done"
+              style={styles.input}
             />
-            <HelperText type={keyError ? 'error' : 'info'} visible>
-              {keyError || 'Find your key at platform.openai.com → API keys'}
+            <HelperText type="info" visible>
+              aistudio.google.com → Get API key
+            </HelperText>
+
+            {/* Anthropic */}
+            <Text variant="labelLarge" style={[styles.sectionLabel, { color: t.colors.primary, marginTop: 12 }]}>
+              Anthropic
+            </Text>
+            <Text variant="bodySmall" style={{ color: t.colors.onSurfaceVariant, marginBottom: 10 }}>
+              Used to deduce the note title and tags (Claude Haiku).
+            </Text>
+            <TextInput
+              label="Anthropic API Key"
+              value={anthropicKey}
+              onChangeText={(v) => { setAnthropicKey(v); setKeysError(''); }}
+              mode="outlined"
+              secureTextEntry={!anthropicVisible}
+              autoCapitalize="none"
+              autoCorrect={false}
+              right={
+                <TextInput.Icon
+                  icon={anthropicVisible ? 'eye-off' : 'eye'}
+                  onPress={() => setAnthropicVisible((v) => !v)}
+                />
+              }
+              style={styles.input}
+            />
+            <HelperText type={keysError ? 'error' : 'info'} visible>
+              {keysError || 'console.anthropic.com → API keys  (starts with sk-ant-)'}
             </HelperText>
 
             <Button
               mode="contained"
-              onPress={validateApiKey}
-              disabled={!apiKey.trim() || validatingKey}
-              loading={validatingKey}
-              style={styles.button}
+              onPress={validateAndSaveKeys}
+              disabled={!canContinue || validating}
+              loading={validating}
+              style={[styles.button, { marginTop: 20 }]}
               contentStyle={styles.buttonContent}
             >
               Continue
             </Button>
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
     );
   }
 
-  // ── Step 2: Google Auth ──────────────────────────────────────────────────
+  // ── Step 2: Google Auth ───────────────────────────────────────────────────
   if (step === 'google_auth') {
     const clientIdMissing = !GOOGLE_CLIENT_ID;
     return (
       <SafeAreaView style={[styles.flex, { backgroundColor: bg }]}>
         <Appbar.Header style={{ backgroundColor: 'transparent' }} elevated={false}>
-          <Appbar.BackAction onPress={() => setStep('api_key')} />
+          <Appbar.BackAction onPress={() => setStep('api_keys')} />
           <Appbar.Content title="Setup (2 / 3)" />
         </Appbar.Header>
 
@@ -208,11 +254,7 @@ export default function SetupScreen({ onComplete }: Props) {
           </Text>
 
           {clientIdMissing && (
-            <Banner
-              visible
-              icon="alert"
-              style={{ marginBottom: 20, borderRadius: 12 }}
-            >
+            <Banner visible icon="alert" style={{ marginBottom: 20, borderRadius: 12 }}>
               Open{' '}
               <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 }}>
                 src/config.ts
@@ -243,7 +285,7 @@ export default function SetupScreen({ onComplete }: Props) {
     );
   }
 
-  // ── Step 3: Folder Picker ────────────────────────────────────────────────
+  // ── Step 3: Folder Picker ─────────────────────────────────────────────────
   if (step === 'folder_picker') {
     return (
       <SafeAreaView style={[styles.flex, { backgroundColor: bg }]}>
@@ -275,7 +317,7 @@ export default function SetupScreen({ onComplete }: Props) {
             ) : null}
 
             <ScrollView style={styles.flex} contentContainerStyle={{ paddingBottom: 120 }}>
-              {folders.length === 0 && !loadingFolders && (
+              {folders.length === 0 && (
                 <Text
                   variant="bodyMedium"
                   style={{ color: t.colors.onSurfaceVariant, textAlign: 'center', marginTop: 32, paddingHorizontal: 32 }}
@@ -298,9 +340,7 @@ export default function SetupScreen({ onComplete }: Props) {
                           />
                         )}
                         right={() =>
-                          selected ? (
-                            <List.Icon icon="check" color={t.colors.primary} />
-                          ) : null
+                          selected ? <List.Icon icon="check" color={t.colors.primary} /> : null
                         }
                         onPress={() => setSelectedFolder(folder)}
                         style={[
@@ -332,7 +372,7 @@ export default function SetupScreen({ onComplete }: Props) {
     );
   }
 
-  // ── Done ─────────────────────────────────────────────────────────────────
+  // ── Done ──────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: bg }]}>
       <View style={styles.centerFlex}>
@@ -348,31 +388,22 @@ export default function SetupScreen({ onComplete }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   inner: {
-    flex: 1,
     paddingHorizontal: 24,
     paddingTop: 8,
+    paddingBottom: 32,
   },
-  title: {
-    marginBottom: 8,
-  },
-  titlePadded: {
-    paddingHorizontal: 24,
-  },
-  subtitlePadded: {
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
+  title: { marginBottom: 8 },
+  titlePadded: { paddingHorizontal: 24 },
+  subtitlePadded: { paddingHorizontal: 24, marginBottom: 16 },
+  sectionLabel: { marginBottom: 4 },
+  input: { marginBottom: 0 },
   centerFlex: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  button: {
-    borderRadius: 12,
-  },
-  buttonContent: {
-    paddingVertical: 8,
-  },
+  button: { borderRadius: 12 },
+  buttonContent: { paddingVertical: 8 },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -380,9 +411,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
-  folderRow: {
-    paddingHorizontal: 8,
-  },
+  folderRow: { paddingHorizontal: 8 },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

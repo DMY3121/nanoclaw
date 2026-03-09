@@ -8,16 +8,16 @@ export interface NoteMetadata {
 
 /**
  * Gathers all enriched metadata for a note in parallel:
- * - GPS location (best-effort, null if unavailable)
- * - Title + tags deduced from the transcription via GPT-4o-mini
+ * - GPS location via expo-location (best-effort, null if unavailable)
+ * - Title + tags deduced from the transcription via Claude Haiku
  */
 export async function gatherMetadata(
   transcription: string,
-  apiKey: string
+  anthropicApiKey: string
 ): Promise<NoteMetadata> {
   const [locationResult, aiResult] = await Promise.allSettled([
     getLocation(),
-    deduceMetadata(transcription, apiKey),
+    deduceMetadata(transcription, anthropicApiKey),
   ]);
 
   const location =
@@ -31,7 +31,7 @@ export async function gatherMetadata(
   return { title, tags, location };
 }
 
-// ── Location ─────────────────────────────────────────────────────────────
+// ── Location ──────────────────────────────────────────────────────────────
 
 async function getLocation(): Promise<{ latitude: number; longitude: number } | null> {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -46,52 +46,56 @@ async function getLocation(): Promise<{ latitude: number; longitude: number } | 
   };
 }
 
-// ── AI title + tags ───────────────────────────────────────────────────────
+// ── Claude title + tags ───────────────────────────────────────────────────
 
 interface AiResult {
   title: string;
   tags: string[];
 }
 
-async function deduceMetadata(transcription: string, apiKey: string): Promise<AiResult> {
-  const text = transcription.trim().slice(0, 2000); // cap to keep cost low
+async function deduceMetadata(transcription: string, anthropicApiKey: string): Promise<AiResult> {
+  const text = transcription.trim().slice(0, 2000);
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+      'x-api-key': anthropicApiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      max_tokens: 120,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 150,
       messages: [
         {
-          role: 'system',
+          role: 'user',
           content:
-            'You are a metadata extractor for personal voice notes. ' +
-            'Given a transcription, return a JSON object with exactly two keys:\n' +
-            '- "title": a concise title (max 8 words, no quotes)\n' +
-            '- "tags": an array of 1–5 lowercase single-word or short-phrase tags ' +
-            'that best describe the topic (no "#" prefix)\n' +
-            'Return only valid JSON, nothing else.',
+            'Extract metadata from this voice note transcription.\n' +
+            'Return a JSON object with exactly two keys:\n' +
+            '- "title": concise title, max 8 words, no surrounding quotes\n' +
+            '- "tags": array of 1–5 lowercase tags (single words or short phrases, no # prefix)\n' +
+            'Return only valid JSON, nothing else.\n\n' +
+            `Transcription:\n${text}`,
         },
-        { role: 'user', content: text },
       ],
     }),
   });
 
-  if (!response.ok) throw new Error(`GPT error ${response.status}`);
+  if (!response.ok) {
+    const err = await response.text().catch(() => response.status.toString());
+    throw new Error(`Claude metadata error ${response.status}: ${err}`);
+  }
 
   const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
+    content?: Array<{ type: string; text?: string }>;
   };
 
-  const parsed = JSON.parse(data.choices[0].message.content) as {
-    title?: string;
-    tags?: unknown;
-  };
+  const raw = data.content?.find((b) => b.type === 'text')?.text ?? '{}';
+
+  // Strip markdown code fences if Claude wrapped the JSON
+  const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+
+  const parsed = JSON.parse(jsonStr) as { title?: string; tags?: unknown };
 
   const title =
     typeof parsed.title === 'string' && parsed.title.trim()
@@ -109,5 +113,8 @@ async function deduceMetadata(transcription: string, apiKey: string): Promise<Ai
 
 function fallbackTitle(): string {
   const now = new Date();
-  return `Note ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  return `Note ${now.toLocaleDateString()} ${now.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
 }
