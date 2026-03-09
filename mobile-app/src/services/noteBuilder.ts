@@ -1,13 +1,24 @@
-/**
- * Builds the .md file content and filename for a voice note.
- */
-export function buildNote(transcription: string, durationSeconds: number): string {
-  const now = new Date();
-  const isoDate = now.toISOString();
+import { NoteMetadata } from './metadata';
 
-  // Use first ~60 chars of transcription as title, fallback to timestamp
-  const rawTitle = transcription.trim().slice(0, 60);
-  const title = rawTitle.length > 0 ? rawTitle.replace(/"/g, "'") : `Voice note ${isoDate}`;
+/**
+ * Builds the .md file content with YAML front matter.
+ */
+export function buildNote(
+  transcription: string,
+  durationSeconds: number,
+  meta: NoteMetadata
+): string {
+  const now = new Date();
+
+  const locationLine =
+    meta.location
+      ? `location: "${meta.location.latitude.toFixed(6)}, ${meta.location.longitude.toFixed(6)}"`
+      : 'location: null';
+
+  const tagsLine =
+    meta.tags.length > 0
+      ? `tags: [${meta.tags.map((t) => `"${t}"`).join(', ')}]`
+      : 'tags: []';
 
   const mins = Math.floor(durationSeconds / 60);
   const secs = durationSeconds % 60;
@@ -15,10 +26,11 @@ export function buildNote(transcription: string, durationSeconds: number): strin
 
   return [
     '---',
-    `date: ${isoDate}`,
-    `title: "${title}"`,
+    `title: "${meta.title.replace(/"/g, "'")}"`,
+    `created: ${now.toISOString()}`,
+    locationLine,
+    tagsLine,
     `duration: ${duration}`,
-    `source: voice`,
     '---',
     '',
     transcription.trim(),
@@ -26,8 +38,18 @@ export function buildNote(transcription: string, durationSeconds: number): strin
   ].join('\n');
 }
 
-export function buildFilename(): string {
+export function buildFilename(title: string): string {
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
-  return `note-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.md`;
+  const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const timePart = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+  // Slugify title: lowercase, replace spaces/special chars with hyphens, max 40 chars
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\u00C0-\u024F]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+
+  return `${datePart}-${timePart}-${slug || 'note'}.md`;
 }

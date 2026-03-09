@@ -14,7 +14,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.personal.voicenote",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Microphone access is required to record voice notes."
+        "NSMicrophoneUsageDescription": "Microphone access is required to record voice notes.",
+        "NSLocationWhenInUseUsageDescription": "Location is saved as metadata in your voice notes."
       }
     },
     "android": {
@@ -22,13 +23,19 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.personal.voicenote",
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": ["RECORD_AUDIO", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },
     "plugins": [
       [
         "expo-av",
         {
           "microphonePermission": "Allow Voice Note to record audio."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Location is saved as metadata in your voice notes."
         }
       ]
     ],

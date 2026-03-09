@@ -28,6 +28,7 @@ import SetupScreen from './src/screens/SetupScreen';
 import { transcribeAudio } from './src/services/transcription';
 import { uploadFile, AuthExpiredError } from './src/services/googleDrive';
 import { buildNote, buildFilename } from './src/services/noteBuilder';
+import { gatherMetadata } from './src/services/metadata';
 import { AUTO_CLOSE_SECONDS } from './src/config';
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -204,6 +205,9 @@ function VoiceNoteApp() {
 
       const transcription = await transcribeAudio(uri, apiKey);
 
+      setStatusText('Enriching metadata…');
+      const meta = await gatherMetadata(transcription, apiKey);
+
       setAppState('uploading');
       setStatusText('Saving to Google Drive…');
 
@@ -213,8 +217,8 @@ function VoiceNoteApp() {
       ]);
       if (!accessToken || !folderId) throw new Error('Drive credentials missing.');
 
-      const content = buildNote(transcription, durationSecs);
-      const filename = buildFilename();
+      const content = buildNote(transcription, durationSecs, meta);
+      const filename = buildFilename(meta.title);
       await uploadFile(content, filename, accessToken, folderId);
 
       setSavedFilename(filename);
