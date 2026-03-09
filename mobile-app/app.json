@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Voice Note",
+    "slug": "voice-note-drive",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0a0a0a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.personal.voicenote",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Microphone access is required to record voice notes."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.personal.voicenote",
+      "permissions": ["RECORD_AUDIO"]
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Voice Note to record audio."
+        }
+      ]
+    ],
+    "extra": {
+      "googleClientId": ""
+    }
+  }
+}
