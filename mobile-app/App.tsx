@@ -1,18 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
   BackHandler,
   Platform,
   Animated,
   Easing,
-  SafeAreaView,
 } from 'react-native';
+import {
+  PaperProvider,
+  MD3DarkTheme,
+  Text,
+  FAB,
+  Button,
+  ProgressBar,
+  Surface,
+  ActivityIndicator,
+  useTheme,
+  adaptNavigationTheme,
+} from 'react-native-paper';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Audio } from 'expo-av';
 import * as SecureStore from 'expo-secure-store';
-import { StatusBar } from 'expo-status-bar';
 
 import SetupScreen from './src/screens/SetupScreen';
 import { transcribeAudio } from './src/services/transcription';
@@ -20,17 +30,34 @@ import { uploadFile, AuthExpiredError } from './src/services/googleDrive';
 import { buildNote, buildFilename } from './src/services/noteBuilder';
 import { AUTO_CLOSE_SECONDS } from './src/config';
 
-type AppState = 'loading' | 'setup' | 'ready' | 'recording' | 'transcribing' | 'uploading' | 'done' | 'error';
-
-const COLORS = {
-  bg: '#0a0a0a',
-  red: '#ff3b30',
-  green: '#34c759',
-  white: '#ffffff',
-  gray: '#8e8e93',
-  darkGray: '#1c1c1e',
-  border: '#2c2c2e',
+// ── Theme ──────────────────────────────────────────────────────────────────
+const theme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    // Teal primary for a clean voice-note feel
+    primary: '#80CBC4',
+    primaryContainer: '#004D47',
+    onPrimaryContainer: '#9EEAE3',
+    secondary: '#B0CCC9',
+    secondaryContainer: '#1B3533',
+    surface: '#1A1C1E',
+    surfaceVariant: '#3F4948',
+    background: '#0F1312',
+    error: '#FF5449',
+    errorContainer: '#93000A',
+  },
 };
+
+type AppState =
+  | 'loading'
+  | 'setup'
+  | 'ready'
+  | 'recording'
+  | 'transcribing'
+  | 'uploading'
+  | 'done'
+  | 'error';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -38,7 +65,10 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function App() {
+// ── Inner app (has access to theme) ───────────────────────────────────────
+function VoiceNoteApp() {
+  const t = useTheme();
+
   const [appState, setAppState] = useState<AppState>('loading');
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -48,12 +78,12 @@ export default function App() {
   const [savedFilename, setSavedFilename] = useState('');
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const countdownAnim = useRef(new Animated.Value(1)).current;
+  const countdownProgress = useRef(new Animated.Value(1)).current;
   const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
   const recordingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Startup ────────────────────────────────────────────────────────────────
+  // ── Startup ──────────────────────────────────────────────────────────────
   useEffect(() => {
     checkSetup();
   }, []);
@@ -64,35 +94,31 @@ export default function App() {
       SecureStore.getItemAsync('google_access_token'),
       SecureStore.getItemAsync('drive_folder_id'),
     ]);
-    if (apiKey && token && folderId) {
-      setAppState('ready');
-    } else {
-      setAppState('setup');
-    }
+    setAppState(apiKey && token && folderId ? 'ready' : 'setup');
   };
 
-  // ── Auto-start recording when ready ───────────────────────────────────────
+  // Auto-start recording
   useEffect(() => {
     if (appState === 'ready') {
-      const t = setTimeout(startRecording, 400);
-      return () => clearTimeout(t);
+      const timer = setTimeout(startRecording, 400);
+      return () => clearTimeout(timer);
     }
   }, [appState]);
 
-  // ── Pulse animation while recording ───────────────────────────────────────
+  // Pulse animation while recording
   useEffect(() => {
     if (appState === 'recording') {
       pulseLoop.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.35,
-            duration: 700,
+            toValue: 1.6,
+            duration: 800,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 700,
+            duration: 800,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
@@ -105,21 +131,19 @@ export default function App() {
     }
   }, [appState]);
 
-  // ── Countdown when done ────────────────────────────────────────────────────
+  // Countdown when done
   useEffect(() => {
     if (appState === 'done') {
       setCountdown(AUTO_CLOSE_SECONDS);
-      countdownAnim.setValue(1);
+      countdownProgress.setValue(1);
 
-      // Animate countdown bar
-      Animated.timing(countdownAnim, {
+      Animated.timing(countdownProgress, {
         toValue: 0,
         duration: AUTO_CLOSE_SECONDS * 1000,
         easing: Easing.linear,
         useNativeDriver: false,
       }).start();
 
-      // Tick counter
       let remaining = AUTO_CLOSE_SECONDS;
       countdownInterval.current = setInterval(() => {
         remaining -= 1;
@@ -132,12 +156,12 @@ export default function App() {
 
       return () => {
         clearInterval(countdownInterval.current!);
-        countdownAnim.stopAnimation();
+        countdownProgress.stopAnimation();
       };
     }
   }, [appState]);
 
-  // ── Recording logic ────────────────────────────────────────────────────────
+  // ── Recording ────────────────────────────────────────────────────────────
   const startRecording = useCallback(async () => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
@@ -145,23 +169,17 @@ export default function App() {
         showError('Microphone permission is required.');
         return;
       }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
       const rec = new Audio.Recording();
       await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       await rec.startAsync();
-
       setRecording(rec);
       setRecordingSeconds(0);
       setAppState('recording');
-
-      recordingInterval.current = setInterval(() => {
-        setRecordingSeconds((s) => s + 1);
-      }, 1000);
+      recordingInterval.current = setInterval(
+        () => setRecordingSeconds((s) => s + 1),
+        1000
+      );
     } catch (e) {
       showError(`Could not start recording: ${e}`);
     }
@@ -169,18 +187,16 @@ export default function App() {
 
   const stopRecording = useCallback(async () => {
     if (!recording) return;
-
     clearInterval(recordingInterval.current!);
     const durationSecs = recordingSeconds;
 
     setAppState('transcribing');
-    setStatusText('Transcribing audio…');
+    setStatusText('Transcribing…');
 
     try {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       setRecording(null);
-
       if (!uri) throw new Error('No audio URI returned.');
 
       const apiKey = await SecureStore.getItemAsync('openai_api_key');
@@ -199,148 +215,227 @@ export default function App() {
 
       const content = buildNote(transcription, durationSecs);
       const filename = buildFilename();
-
       await uploadFile(content, filename, accessToken, folderId);
 
       setSavedFilename(filename);
       setAppState('done');
     } catch (e) {
       if (e instanceof AuthExpiredError) {
-        // Clear token so setup re-runs Google auth
         await SecureStore.deleteItemAsync('google_access_token');
-        showError('Google session expired. Tap to reconnect.');
+        showError('Google session expired — tap to reconnect.');
       } else {
         showError(`${e}`);
       }
     }
   }, [recording, recordingSeconds]);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
   const showError = (msg: string) => {
     setErrorMessage(msg);
     setAppState('error');
   };
 
   const closeApp = () => {
-    if (Platform.OS === 'android') {
-      BackHandler.exitApp();
-    } else {
-      // iOS: reset to ready (will auto-start recording for next note)
-      resetToReady();
-    }
+    if (Platform.OS === 'android') BackHandler.exitApp();
+    else resetToReady();
   };
 
   const resetToReady = () => {
     clearInterval(countdownInterval.current!);
-    countdownAnim.stopAnimation();
+    countdownProgress.stopAnimation();
     setRecordingSeconds(0);
-    setStatusText('');
     setSavedFilename('');
     setErrorMessage('');
     setAppState('ready');
   };
 
-  const handleSetupComplete = () => setAppState('ready');
-
-  const handleReconnectDrive = () => setAppState('setup');
-
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
   if (appState === 'loading') return null;
 
   if (appState === 'setup') {
-    return <SetupScreen onComplete={handleSetupComplete} />;
+    return <SetupScreen onComplete={() => setAppState('ready')} />;
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: t.colors.background }]}>
       <StatusBar style="light" />
       <View style={styles.container}>
-        {/* ── RECORDING ── */}
+
+        {/* ── RECORDING ─────────────────────────────────────────────── */}
         {appState === 'recording' && (
           <View style={styles.center}>
-            <TouchableOpacity onPress={stopRecording} activeOpacity={0.8}>
-              <Animated.View
-                style={[
-                  styles.pulseRing,
-                  { transform: [{ scale: pulseAnim }] },
-                ]}
-              />
-              <View style={styles.micButton}>
-                <Text style={styles.micIcon}>🎙</Text>
-              </View>
-            </TouchableOpacity>
+            {/* Ripple rings */}
+            <Animated.View
+              style={[
+                styles.pulseRing,
+                styles.pulseRingOuter,
+                {
+                  backgroundColor: t.colors.errorContainer,
+                  transform: [{ scale: pulseAnim }],
+                },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.pulseRing,
+                styles.pulseRingInner,
+                {
+                  backgroundColor: t.colors.error + '55',
+                  transform: [
+                    {
+                      scale: pulseAnim.interpolate({
+                        inputRange: [1, 1.6],
+                        outputRange: [1, 1.3],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
 
-            <Text style={styles.timer}>{formatTime(recordingSeconds)}</Text>
-            <Text style={styles.hint}>Tap to stop</Text>
+            <FAB
+              icon="microphone"
+              size="large"
+              style={[styles.fab, { backgroundColor: t.colors.error }]}
+              color="#fff"
+              onPress={stopRecording}
+            />
+
+            <Text
+              variant="displayMedium"
+              style={[styles.timer, { color: t.colors.onSurface }]}
+            >
+              {formatTime(recordingSeconds)}
+            </Text>
+
+            <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginTop: 8 }}>
+              Tap to stop
+            </Text>
           </View>
         )}
 
-        {/* ── TRANSCRIBING / UPLOADING ── */}
+        {/* ── PROCESSING ────────────────────────────────────────────── */}
         {(appState === 'transcribing' || appState === 'uploading') && (
           <View style={styles.center}>
-            <ProcessingSpinner />
-            <Text style={styles.statusText}>{statusText}</Text>
+            <ActivityIndicator size={56} color={t.colors.primary} />
+            <Text
+              variant="titleMedium"
+              style={{ color: t.colors.onSurfaceVariant, marginTop: 28 }}
+            >
+              {statusText}
+            </Text>
           </View>
         )}
 
-        {/* ── DONE ── */}
+        {/* ── DONE ──────────────────────────────────────────────────── */}
         {appState === 'done' && (
           <View style={styles.center}>
-            <View style={styles.checkCircle}>
-              <Text style={styles.checkIcon}>✓</Text>
-            </View>
+            <Surface
+              style={[styles.iconSurface, { backgroundColor: t.colors.primaryContainer }]}
+              elevation={0}
+            >
+              <Text style={[styles.iconText, { color: t.colors.onPrimaryContainer }]}>✓</Text>
+            </Surface>
 
-            <Text style={styles.doneTitle}>Note saved!</Text>
+            <Text
+              variant="headlineMedium"
+              style={[styles.doneTitle, { color: t.colors.onSurface }]}
+            >
+              Note saved
+            </Text>
+
             {savedFilename ? (
-              <Text style={styles.filename}>{savedFilename}</Text>
+              <Text
+                variant="bodySmall"
+                style={{ color: t.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}
+              >
+                {savedFilename}
+              </Text>
             ) : null}
 
-            {/* Countdown bar */}
-            <View style={styles.countdownTrack}>
-              <Animated.View
-                style={[
-                  styles.countdownBar,
-                  {
-                    width: countdownAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%'],
-                    }),
-                  },
-                ]}
-              />
+            {/* Countdown progress */}
+            <View style={styles.countdownArea}>
+              <Animated.View style={{ width: '100%' }}>
+                <ProgressBar
+                  progress={countdownProgress as unknown as number}
+                  color={t.colors.primary}
+                  style={styles.progressBar}
+                />
+              </Animated.View>
+              <Text
+                variant="labelSmall"
+                style={{ color: t.colors.onSurfaceVariant, marginTop: 6, alignSelf: 'flex-end' }}
+              >
+                Closing in {countdown}s
+              </Text>
             </View>
-            <Text style={styles.countdownText}>Closing in {countdown}s</Text>
 
-            <TouchableOpacity style={styles.moreButton} onPress={resetToReady}>
-              <Text style={styles.moreButtonText}>One More Note</Text>
-            </TouchableOpacity>
+            <Button
+              mode="contained-tonal"
+              onPress={resetToReady}
+              style={styles.moreButton}
+              contentStyle={styles.moreButtonContent}
+              labelStyle={{ fontSize: 16 }}
+            >
+              One More Note
+            </Button>
           </View>
         )}
 
-        {/* ── READY (brief flash before auto-start) ── */}
+        {/* ── READY (brief flash) ────────────────────────────────────── */}
         {appState === 'ready' && (
           <View style={styles.center}>
-            <View style={[styles.micButton, { opacity: 0.4 }]}>
-              <Text style={styles.micIcon}>🎙</Text>
-            </View>
-            <Text style={styles.hint}>Starting…</Text>
+            <FAB
+              icon="microphone"
+              size="large"
+              style={[styles.fab, { backgroundColor: t.colors.primary, opacity: 0.4 }]}
+              color={t.colors.onPrimary}
+              onPress={() => {}}
+            />
+            <Text
+              variant="bodyMedium"
+              style={{ color: t.colors.onSurfaceVariant, marginTop: 24 }}
+            >
+              Starting…
+            </Text>
           </View>
         )}
 
-        {/* ── ERROR ── */}
+        {/* ── ERROR ─────────────────────────────────────────────────── */}
         {appState === 'error' && (
           <View style={styles.center}>
-            <Text style={styles.errorIcon}>✕</Text>
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Surface
+              style={[styles.iconSurface, { backgroundColor: t.colors.errorContainer }]}
+              elevation={0}
+            >
+              <Text style={[styles.iconText, { color: t.colors.error }]}>✕</Text>
+            </Surface>
 
-            <TouchableOpacity style={styles.moreButton} onPress={resetToReady}>
-              <Text style={styles.moreButtonText}>Try Again</Text>
-            </TouchableOpacity>
+            <Text
+              variant="bodyMedium"
+              style={[styles.errorText, { color: t.colors.onSurfaceVariant }]}
+            >
+              {errorMessage}
+            </Text>
+
+            <Button
+              mode="contained"
+              onPress={resetToReady}
+              style={[styles.moreButton, { marginTop: 28 }]}
+              contentStyle={styles.moreButtonContent}
+            >
+              Try Again
+            </Button>
 
             {errorMessage.toLowerCase().includes('google') && (
-              <TouchableOpacity style={[styles.moreButton, styles.secondaryButton]} onPress={handleReconnectDrive}>
-                <Text style={styles.secondaryButtonText}>Reconnect Google Drive</Text>
-              </TouchableOpacity>
+              <Button
+                mode="outlined"
+                onPress={() => setAppState('setup')}
+                style={[styles.moreButton, { marginTop: 12 }]}
+                contentStyle={styles.moreButtonContent}
+              >
+                Reconnect Google Drive
+              </Button>
             )}
           </View>
         )}
@@ -349,38 +444,21 @@ export default function App() {
   );
 }
 
-// ── Spinner ──────────────────────────────────────────────────────────────────
-function ProcessingSpinner() {
-  const spin = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, []);
-
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
+// ── Root ───────────────────────────────────────────────────────────────────
+export default function App() {
   return (
-    <Animated.View style={[styles.spinner, { transform: [{ rotate }] }]} />
+    <SafeAreaProvider>
+      <PaperProvider theme={theme}>
+        <VoiceNoteApp />
+      </PaperProvider>
+    </SafeAreaProvider>
   );
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────────
+// ── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -391,133 +469,67 @@ const styles = StyleSheet.create({
   // Recording
   pulseRing: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: `${COLORS.red}30`,
-    alignSelf: 'center',
-    top: -10,
-    left: -10,
+    borderRadius: 999,
   },
-  micButton: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.red,
+  pulseRingOuter: {
+    width: 200,
+    height: 200,
+    opacity: 0.25,
+  },
+  pulseRingInner: {
+    width: 160,
+    height: 160,
+    opacity: 0.35,
+  },
+  fab: {
+    borderRadius: 999,
+    width: 96,
+    height: 96,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  micIcon: {
-    fontSize: 52,
-  },
   timer: {
-    marginTop: 36,
-    fontSize: 48,
-    fontWeight: '200',
-    color: COLORS.white,
-    letterSpacing: 2,
+    marginTop: 40,
     fontVariant: ['tabular-nums'],
-  },
-  hint: {
-    marginTop: 12,
-    fontSize: 15,
-    color: COLORS.gray,
+    letterSpacing: 2,
   },
 
-  // Processing
-  spinner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: COLORS.border,
-    borderTopColor: COLORS.white,
-  },
-  statusText: {
-    marginTop: 24,
-    fontSize: 17,
-    color: COLORS.gray,
-  },
-
-  // Done
-  checkCircle: {
+  // Done / Error shared
+  iconSurface: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: COLORS.green,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkIcon: {
-    fontSize: 48,
-    color: COLORS.white,
-    fontWeight: '600',
+  iconText: {
+    fontSize: 44,
+    fontWeight: '300',
   },
   doneTitle: {
-    marginTop: 28,
-    fontSize: 28,
-    fontWeight: '600',
-    color: COLORS.white,
+    marginTop: 24,
   },
-  filename: {
-    marginTop: 8,
-    fontSize: 13,
-    color: COLORS.gray,
-    textAlign: 'center',
-  },
-  countdownTrack: {
-    marginTop: 40,
+  countdownArea: {
     width: '100%',
-    height: 3,
-    backgroundColor: COLORS.border,
-    borderRadius: 2,
-    overflow: 'hidden',
+    marginTop: 40,
   },
-  countdownBar: {
-    height: 3,
-    backgroundColor: COLORS.green,
+  progressBar: {
+    height: 4,
     borderRadius: 2,
-  },
-  countdownText: {
-    marginTop: 8,
-    fontSize: 13,
-    color: COLORS.gray,
   },
   moreButton: {
     marginTop: 32,
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    backgroundColor: COLORS.darkGray,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 12,
   },
-  moreButtonText: {
-    fontSize: 17,
-    fontWeight: '500',
-    color: COLORS.white,
+  moreButtonContent: {
+    paddingVertical: 8,
+    paddingHorizontal: 24,
   },
 
   // Error
-  errorIcon: {
-    fontSize: 56,
-    color: COLORS.red,
-    fontWeight: '300',
-  },
   errorText: {
-    marginTop: 16,
-    fontSize: 15,
-    color: COLORS.gray,
+    marginTop: 20,
     textAlign: 'center',
     lineHeight: 22,
-  },
-  secondaryButton: {
-    marginTop: 12,
-    backgroundColor: 'transparent',
-    borderColor: COLORS.border,
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    color: COLORS.gray,
   },
 });

@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import {
+  Text,
+  TextInput,
+  Button,
+  Surface,
+  List,
+  Divider,
+  ActivityIndicator,
+  useTheme,
+  Appbar,
+  Banner,
+  HelperText,
+} from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
@@ -20,17 +29,6 @@ import { GOOGLE_CLIENT_ID, GOOGLE_SCOPES } from '../config';
 WebBrowser.maybeCompleteAuthSession();
 
 type Step = 'api_key' | 'google_auth' | 'folder_picker' | 'done';
-
-const COLORS = {
-  bg: '#0a0a0a',
-  card: '#1c1c1e',
-  white: '#ffffff',
-  gray: '#8e8e93',
-  border: '#2c2c2e',
-  accent: '#0a84ff',
-  green: '#34c759',
-  red: '#ff3b30',
-};
 
 const GOOGLE_DISCOVERY = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -42,12 +40,17 @@ interface Props {
 }
 
 export default function SetupScreen({ onComplete }: Props) {
+  const t = useTheme();
+
   const [step, setStep] = useState<Step>('api_key');
   const [apiKey, setApiKey] = useState('');
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
   const [validatingKey, setValidatingKey] = useState(false);
+  const [keyError, setKeyError] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
+  const [folderError, setFolderError] = useState('');
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null);
 
   const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
@@ -58,15 +61,11 @@ export default function SetupScreen({ onComplete }: Props) {
       redirectUri,
       scopes: GOOGLE_SCOPES,
       responseType: AuthSession.ResponseType.Token,
-      extraParams: {
-        access_type: 'offline',
-        prompt: 'consent',
-      },
+      extraParams: { access_type: 'offline', prompt: 'consent' },
     },
     GOOGLE_DISCOVERY
   );
 
-  // Handle Google OAuth response
   useEffect(() => {
     if (authResponse?.type === 'success') {
       const token = authResponse.params.access_token;
@@ -75,31 +74,30 @@ export default function SetupScreen({ onComplete }: Props) {
         fetchFolders(token);
       }
     } else if (authResponse?.type === 'error') {
-      Alert.alert('Auth Error', authResponse.error?.message ?? 'Google sign-in failed.');
+      setFolderError(authResponse.error?.message ?? 'Google sign-in failed.');
     }
   }, [authResponse]);
 
   const validateApiKey = async () => {
     const trimmed = apiKey.trim();
+    setKeyError('');
     if (!trimmed.startsWith('sk-')) {
-      Alert.alert('Invalid Key', 'OpenAI API keys start with "sk-".');
+      setKeyError('OpenAI keys start with "sk-"');
       return;
     }
-
     setValidatingKey(true);
     try {
-      // Quick check: list models (cheap, requires valid key)
       const res = await fetch('https://api.openai.com/v1/models', {
         headers: { Authorization: `Bearer ${trimmed}` },
       });
       if (!res.ok) {
-        Alert.alert('Invalid Key', 'The API key was rejected by OpenAI.');
+        setKeyError('Key rejected by OpenAI — check it and try again.');
         return;
       }
       await SecureStore.setItemAsync('openai_api_key', trimmed);
       setStep('google_auth');
     } catch {
-      Alert.alert('Network Error', 'Could not reach OpenAI. Check your connection.');
+      setKeyError('Network error — check your connection.');
     } finally {
       setValidatingKey(false);
     }
@@ -107,12 +105,13 @@ export default function SetupScreen({ onComplete }: Props) {
 
   const fetchFolders = async (token: string) => {
     setLoadingFolders(true);
+    setFolderError('');
     setStep('folder_picker');
     try {
       const list = await listFolders(token);
       setFolders(list);
     } catch (e) {
-      Alert.alert('Drive Error', `Could not list folders: ${e}`);
+      setFolderError(`Could not load folders: ${e}`);
     } finally {
       setLoadingFolders(false);
     }
@@ -126,295 +125,271 @@ export default function SetupScreen({ onComplete }: Props) {
       SecureStore.setItemAsync('drive_folder_name', selectedFolder.name),
     ]);
     setStep('done');
-    setTimeout(onComplete, 800);
+    setTimeout(onComplete, 600);
   };
 
-  // ── Step: API Key ──────────────────────────────────────────────────────────
+  const bg = t.colors.background;
+  const surface = t.colors.surface;
+
+  // ── Step 1: API Key ──────────────────────────────────────────────────────
   if (step === 'api_key') {
     return (
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.flex, { backgroundColor: bg }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.inner}>
-          <Text style={styles.stepLabel}>Step 1 of 3</Text>
-          <Text style={styles.title}>OpenAI API Key</Text>
-          <Text style={styles.subtitle}>
-            Used to transcribe your voice notes via Whisper.
-          </Text>
+        <SafeAreaView style={styles.flex}>
+          <Appbar.Header style={{ backgroundColor: 'transparent' }} elevated={false}>
+            <Appbar.Content title="Setup (1 / 3)" />
+          </Appbar.Header>
 
-          <TextInput
-            style={styles.input}
-            placeholder="sk-..."
-            placeholderTextColor={COLORS.gray}
-            value={apiKey}
-            onChangeText={setApiKey}
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-            returnKeyType="done"
-            onSubmitEditing={validateApiKey}
-          />
+          <View style={styles.inner}>
+            <Text variant="headlineMedium" style={[styles.title, { color: t.colors.onSurface }]}>
+              OpenAI API Key
+            </Text>
+            <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: 28 }}>
+              Used to transcribe your voice notes via Whisper.
+            </Text>
 
-          <TouchableOpacity
-            style={[styles.button, (!apiKey.trim() || validatingKey) && styles.buttonDisabled]}
-            onPress={validateApiKey}
-            disabled={!apiKey.trim() || validatingKey}
-          >
-            {validatingKey ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <Text style={styles.buttonText}>Continue</Text>
-            )}
-          </TouchableOpacity>
+            <TextInput
+              label="API Key"
+              value={apiKey}
+              onChangeText={(v) => { setApiKey(v); setKeyError(''); }}
+              mode="outlined"
+              secureTextEntry={!apiKeyVisible}
+              autoCapitalize="none"
+              autoCorrect={false}
+              right={
+                <TextInput.Icon
+                  icon={apiKeyVisible ? 'eye-off' : 'eye'}
+                  onPress={() => setApiKeyVisible((v) => !v)}
+                />
+              }
+              error={!!keyError}
+              onSubmitEditing={validateApiKey}
+              returnKeyType="done"
+            />
+            <HelperText type={keyError ? 'error' : 'info'} visible>
+              {keyError || 'Find your key at platform.openai.com → API keys'}
+            </HelperText>
 
-          <Text style={styles.footnote}>
-            Get your key at platform.openai.com → API keys
-          </Text>
-        </View>
+            <Button
+              mode="contained"
+              onPress={validateApiKey}
+              disabled={!apiKey.trim() || validatingKey}
+              loading={validatingKey}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+            >
+              Continue
+            </Button>
+          </View>
+        </SafeAreaView>
       </KeyboardAvoidingView>
     );
   }
 
-  // ── Step: Google Auth ──────────────────────────────────────────────────────
+  // ── Step 2: Google Auth ──────────────────────────────────────────────────
   if (step === 'google_auth') {
     const clientIdMissing = !GOOGLE_CLIENT_ID;
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={[styles.flex, { backgroundColor: bg }]}>
+        <Appbar.Header style={{ backgroundColor: 'transparent' }} elevated={false}>
+          <Appbar.BackAction onPress={() => setStep('api_key')} />
+          <Appbar.Content title="Setup (2 / 3)" />
+        </Appbar.Header>
+
         <View style={styles.inner}>
-          <Text style={styles.stepLabel}>Step 2 of 3</Text>
-          <Text style={styles.title}>Connect Google Drive</Text>
-          <Text style={styles.subtitle}>
-            Your notes will be saved as .md files in a folder you choose.
+          <Text variant="headlineMedium" style={[styles.title, { color: t.colors.onSurface }]}>
+            Connect Google Drive
+          </Text>
+          <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginBottom: 28 }}>
+            Notes will be saved as .md files in a Drive folder you choose.
           </Text>
 
           {clientIdMissing && (
-            <View style={styles.warningBox}>
-              <Text style={styles.warningText}>
-                ⚠️  Open{' '}
-                <Text style={styles.code}>mobile-app/src/config.ts</Text> and
-                set your{' '}
-                <Text style={styles.code}>GOOGLE_CLIENT_ID</Text> before signing in.
-              </Text>
-            </View>
+            <Banner
+              visible
+              icon="alert"
+              style={{ marginBottom: 20, borderRadius: 12 }}
+            >
+              Open{' '}
+              <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 }}>
+                src/config.ts
+              </Text>{' '}
+              and set your GOOGLE_CLIENT_ID before signing in.
+            </Banner>
           )}
 
-          <TouchableOpacity
-            style={[styles.button, clientIdMissing && styles.buttonDisabled]}
+          <Surface style={[styles.infoCard, { backgroundColor: t.colors.secondaryContainer }]} elevation={0}>
+            <List.Icon icon="shield-check" color={t.colors.onSecondaryContainer} />
+            <Text variant="bodySmall" style={{ color: t.colors.onSecondaryContainer, flex: 1 }}>
+              Only "drive.file" scope — the app can only see files it creates.
+            </Text>
+          </Surface>
+
+          <Button
+            mode="contained"
+            icon="google"
             onPress={() => promptAsync({ useProxy: true })}
             disabled={!request || clientIdMissing}
+            style={[styles.button, { marginTop: 32 }]}
+            contentStyle={styles.buttonContent}
           >
-            <Text style={styles.buttonText}>Sign in with Google</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.footnote}>
-            Only "drive.file" scope is requested — the app can only see files it creates.
-          </Text>
+            Sign in with Google
+          </Button>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  // ── Step: Folder Picker ────────────────────────────────────────────────────
+  // ── Step 3: Folder Picker ────────────────────────────────────────────────
   if (step === 'folder_picker') {
     return (
-      <View style={styles.container}>
-        <View style={styles.headerArea}>
-          <Text style={styles.stepLabel}>Step 3 of 3</Text>
-          <Text style={styles.title}>Choose a folder</Text>
-          <Text style={styles.subtitle}>Notes will be saved here.</Text>
-        </View>
+      <SafeAreaView style={[styles.flex, { backgroundColor: bg }]}>
+        <Appbar.Header style={{ backgroundColor: 'transparent' }} elevated={false}>
+          <Appbar.BackAction onPress={() => setStep('google_auth')} />
+          <Appbar.Content title="Setup (3 / 3)" />
+        </Appbar.Header>
+
+        <Text variant="headlineMedium" style={[styles.title, styles.titlePadded, { color: t.colors.onSurface }]}>
+          Choose a folder
+        </Text>
+        <Text variant="bodyMedium" style={[styles.subtitlePadded, { color: t.colors.onSurfaceVariant }]}>
+          Voice notes will be saved here.
+        </Text>
 
         {loadingFolders ? (
           <View style={styles.centerFlex}>
-            <ActivityIndicator color={COLORS.white} size="large" />
-            <Text style={[styles.subtitle, { marginTop: 16 }]}>Loading folders…</Text>
+            <ActivityIndicator size={40} />
+            <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginTop: 16 }}>
+              Loading folders…
+            </Text>
           </View>
         ) : (
-          <ScrollView style={styles.folderList} contentContainerStyle={{ paddingBottom: 120 }}>
-            {folders.length === 0 && (
-              <Text style={[styles.subtitle, { textAlign: 'center', marginTop: 32 }]}>
-                No folders found. Create one in Google Drive first.
-              </Text>
-            )}
-            {folders.map((folder) => {
-              const selected = selectedFolder?.id === folder.id;
-              return (
-                <TouchableOpacity
-                  key={folder.id}
-                  style={[styles.folderRow, selected && styles.folderRowSelected]}
-                  onPress={() => setSelectedFolder(folder)}
-                >
-                  <Text style={styles.folderIcon}>📁</Text>
-                  <Text style={[styles.folderName, selected && styles.folderNameSelected]}>
-                    {folder.name}
-                  </Text>
-                  {selected && <Text style={styles.checkMark}>✓</Text>}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
+          <>
+            {folderError ? (
+              <Banner visible icon="alert-circle" style={{ margin: 16, borderRadius: 12 }}>
+                {folderError}
+              </Banner>
+            ) : null}
 
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={[styles.button, !selectedFolder && styles.buttonDisabled]}
-            onPress={confirmFolder}
-            disabled={!selectedFolder}
-          >
-            <Text style={styles.buttonText}>
-              {selectedFolder ? `Use "${selectedFolder.name}"` : 'Select a folder'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <ScrollView style={styles.flex} contentContainerStyle={{ paddingBottom: 120 }}>
+              {folders.length === 0 && !loadingFolders && (
+                <Text
+                  variant="bodyMedium"
+                  style={{ color: t.colors.onSurfaceVariant, textAlign: 'center', marginTop: 32, paddingHorizontal: 32 }}
+                >
+                  No folders found. Create one in Google Drive first.
+                </Text>
+              )}
+              <Surface style={{ marginHorizontal: 16, borderRadius: 16, overflow: 'hidden' }} elevation={0}>
+                {folders.map((folder, index) => {
+                  const selected = selectedFolder?.id === folder.id;
+                  return (
+                    <React.Fragment key={folder.id}>
+                      <List.Item
+                        title={folder.name}
+                        titleStyle={{ color: selected ? t.colors.primary : t.colors.onSurface }}
+                        left={() => (
+                          <List.Icon
+                            icon="folder"
+                            color={selected ? t.colors.primary : t.colors.onSurfaceVariant}
+                          />
+                        )}
+                        right={() =>
+                          selected ? (
+                            <List.Icon icon="check" color={t.colors.primary} />
+                          ) : null
+                        }
+                        onPress={() => setSelectedFolder(folder)}
+                        style={[
+                          styles.folderRow,
+                          selected && { backgroundColor: t.colors.primaryContainer },
+                        ]}
+                      />
+                      {index < folders.length - 1 && <Divider />}
+                    </React.Fragment>
+                  );
+                })}
+              </Surface>
+            </ScrollView>
+
+            <View style={[styles.bottomBar, { backgroundColor: bg, borderTopColor: t.colors.surfaceVariant }]}>
+              <Button
+                mode="contained"
+                onPress={confirmFolder}
+                disabled={!selectedFolder}
+                style={styles.button}
+                contentStyle={styles.buttonContent}
+              >
+                {selectedFolder ? `Use "${selectedFolder.name}"` : 'Select a folder'}
+              </Button>
+            </View>
+          </>
+        )}
+      </SafeAreaView>
     );
   }
 
-  // ── Step: Done ─────────────────────────────────────────────────────────────
+  // ── Done ─────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
-      <View style={styles.inner}>
-        <Text style={[styles.title, { color: COLORS.green }]}>All set!</Text>
-        <Text style={styles.subtitle}>Starting voice recorder…</Text>
+    <SafeAreaView style={[styles.flex, { backgroundColor: bg }]}>
+      <View style={styles.centerFlex}>
+        <Text variant="headlineMedium" style={{ color: t.colors.primary }}>All set!</Text>
+        <Text variant="bodyMedium" style={{ color: t.colors.onSurfaceVariant, marginTop: 8 }}>
+          Starting voice recorder…
+        </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
+  flex: { flex: 1 },
   inner: {
     flex: 1,
-    padding: 32,
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
   },
-  headerArea: {
-    padding: 32,
-    paddingBottom: 16,
+  title: {
+    marginBottom: 8,
+  },
+  titlePadded: {
+    paddingHorizontal: 24,
+  },
+  subtitlePadded: {
+    paddingHorizontal: 24,
+    marginBottom: 16,
   },
   centerFlex: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepLabel: {
-    fontSize: 13,
-    color: COLORS.gray,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.white,
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: COLORS.gray,
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  input: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: COLORS.white,
-    marginBottom: 20,
-  },
   button: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
+    borderRadius: 12,
   },
-  buttonDisabled: {
-    opacity: 0.4,
+  buttonContent: {
+    paddingVertical: 8,
   },
-  buttonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-  footnote: {
-    marginTop: 16,
-    fontSize: 12,
-    color: COLORS.gray,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  warningBox: {
-    backgroundColor: '#2c1c00',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#ff9500',
-  },
-  warningText: {
-    color: '#ff9500',
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  code: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-  },
-
-  // Folder picker
-  folderList: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  folderRow: {
+  infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    padding: 12,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: 8,
   },
-  folderRowSelected: {
-    borderColor: COLORS.accent,
-    backgroundColor: '#0a1a2e',
-  },
-  folderIcon: {
-    fontSize: 22,
-    marginRight: 12,
-  },
-  folderName: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.white,
-  },
-  folderNameSelected: {
-    color: COLORS.accent,
-    fontWeight: '500',
-  },
-  checkMark: {
-    fontSize: 18,
-    color: COLORS.accent,
-    fontWeight: '700',
+  folderRow: {
+    paddingHorizontal: 8,
   },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    padding: 20,
+    paddingBottom: 36,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });
